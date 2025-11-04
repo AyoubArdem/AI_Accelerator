@@ -20,11 +20,11 @@ AI Accelerator is a SaaS platform designed to help small and medium-sized enterp
 | Feature / Component                  | Technology / Tool                   | Purpose & Usage                                                                 |
 |-------------------------------------|-----------------------------------|-------------------------------------------------------------------------------|
 | Backend API                          | Python + Django / FastAPI          | Serve endpoints for model deployment, monitoring, and user management.        |
-| Frontend Dashboard                   | React.js / Vue.js                  | Interactive UI for monitoring, reports, and user interaction.                 |
-| Database                             | PostgreSQL / MySQL                 | Store models, performance logs, user data, and governance information.        |
+| Frontend Dashboard                   | Next.js                | Interactive UI for monitoring, reports, and user interaction.                 |
+| Database                             | PostgreSQL                 | Store models, performance logs, user data, and governance information.        |
 | Model Deployment                      | Docker + Kubernetes (future)      | Containerize models for secure and scalable production deployment.            |
 | Asynchronous Processing              | Python Async / Celery              | Handle background tasks like model evaluation and notifications efficiently.  |
-| AI Model Frameworks                   | PyTorch, TensorFlow, HuggingFace  | Develop and deploy ML and AI models.                                         |
+| AI Model Frameworks                   | PyTorch, TensorFlow, HuggingFace...  | Develop and deploy ML and AI models.                                         |
 | Caching                              | Redis / Memcache                   | Improve performance of dashboards and repeated queries.                       |
 | Security                             | JWT, OAuth, CSRF, XSS Prevention  | Ensure secure authentication, authorization, and safe API usage.             |
 | CI/CD                                | GitHub Actions / Jenkins / Travis CI | Automate testing, integration, and deployment.                               |
