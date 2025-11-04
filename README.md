@@ -20,7 +20,7 @@ AI Accelerator is a SaaS platform designed to help small and medium-sized enterp
 | Feature / Component                  | Technology / Tool                   | Purpose & Usage                                                                 |
 |-------------------------------------|-----------------------------------|-------------------------------------------------------------------------------|
 | Backend API                          | Python + Django / FastAPI          | Serve endpoints for model deployment, monitoring, and user management.        |
-| Frontend Dashboard                   | Next.js                | Interactive UI for monitoring, reports, and user interaction.                 |
+| Frontend Dashboard                   | Html / CSS                | Interactive UI for monitoring, reports, and user interaction.                 |
 | Database                             | PostgreSQL                 | Store models, performance logs, user data, and governance information.        |
 | Model Deployment                      | Docker + Kubernetes (future)      | Containerize models for secure and scalable production deployment.            |
 | Asynchronous Processing              | Python Async / Celery              | Handle background tasks like model evaluation and notifications efficiently.  |
