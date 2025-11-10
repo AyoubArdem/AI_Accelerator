@@ -1,0 +1,17 @@
+Django
+djangorestframework 
+djangorestframework-simplejwt 
+drf-spectacular 
+django-cors-headers 
+python-decouple 
+sqlparse 
+whitenoise 
+psycopg2-binary 
+celery 
+redis 
+tensorflow 
+transformers 
+transformers 
+PyJWT 
+sentry-sdk 
+python-dotenv 
