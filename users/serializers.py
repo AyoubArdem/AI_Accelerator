@@ -33,10 +33,10 @@ class RegisterSerializer(serializers.ModelSerializer):
               django_validate_email(value)
         except DjangoValidationError:
               raise serializers.ValidationError("give a valid email")
-    return value
+        return value
 
     def validate_password(self,value):
-        if len(value) < 2:
+        if len(value) < 8:
             raise serializers.ValidationError("the password is too short")
         return value
     
