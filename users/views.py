@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate
 
 class RegisterUserView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = RegisterSerializer
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -62,6 +63,7 @@ class LoginView(APIView):
         
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    
 
     def post(self, request):
         try:
