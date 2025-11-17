@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import User
 from rest_framework.permissions import AllowAny
+from django.core.validators import validate_email as django_validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 
 class UserSerializer(serializers.ModelSerializer):
     
@@ -23,3 +26,18 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         )
         return user
+
+   
+    def validate_email(self, value):
+        try:
+              django_validate_email(value)
+        except DjangoValidationError:
+              raise serializers.ValidationError("give a valid email")
+    return value
+
+    def validate_password(self,value):
+        if len(value) < 2:
+            raise serializers.ValidationError("the password is too short")
+        return value
+    
+

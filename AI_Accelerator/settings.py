@@ -157,6 +157,13 @@ REST_FRAMEWORK ={
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
 }
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'AI_Accelerator',
+    'DESCRIPTION': 'AI Accelerator is a SaaS platform designed to help small and medium-sized enterprises (SMEs) accelerate the adoption of Artificial Intelligence by simplifying the process of deploying, monitoring, and managing AI models. The platform bridges the gap between AI experimentation and production, enabling companies to leverage AI effectively without requiring large ML/DevOps teams.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+ 
+}
 
 from decouple import config
 
