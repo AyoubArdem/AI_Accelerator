@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import User
 from rest_framework.permissions import AllowAny
-from django.core.validators import validate_email as django_validate_email
-from django.core.exceptions import ValidationError as DjangoValidationError
+#from django.core.validators import validate_email as django_validate_email
+#from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,9 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
    
     def validate_email(self, value):
-        try:
-              django_validate_email(value)
-        except DjangoValidationError:
+        if  not  value or '@' not in value:
               raise serializers.ValidationError("give a valid email")
         return value
 

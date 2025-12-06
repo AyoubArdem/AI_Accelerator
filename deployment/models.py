@@ -29,9 +29,14 @@ class ModelVersion(models.Model):
 class Deployment(models.Model):
     class StatusChoices(models.TextChoices):  
         PENDING = 'PENDING', 'Pending'
+        DEPLOYING = 'DEPLOYING', 'deploying'
         ACTIVE = 'ACTIVE', 'Active'
+        STOP = 'STOPPED', 'Stopped'
         FAILED = 'FAILED', 'Failed'
-
+        DELETED = 'DELETED', 'deleted'
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    docker_container_id = models.AutoField(default=None)
     model_version = models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name='deployments')
     deployed_at = models.DateTimeField(auto_now_add=True)
     endpoint_url = models.URLField()
