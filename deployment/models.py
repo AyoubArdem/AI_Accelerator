@@ -39,6 +39,7 @@ class Deployment(models.Model):
     docker_container_id = models.AutoField(default=None)
     model_version = models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name='deployments')
     deployed_at = models.DateTimeField(auto_now_add=True)
+    port = models.PositiveIntegerField()
     endpoint_url = models.URLField()
     status = models.CharField(max_length=50, choices=StatusChoices.choices, default=StatusChoices.PENDING)
     logs = models.TextField(blank=True, null=True)

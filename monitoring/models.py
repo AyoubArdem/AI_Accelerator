@@ -1,15 +1,12 @@
 from django.db import models
-from deployement.models import Deployement
+from deployment.models import Deployement
 from django.utils import timezone
 
 class DeploymentMonitoringRecord(models.Model):
-    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="monitoring_records")
+    deployment = models.ForeignKey(Deployement, on_delete=models.CASCADE, related_name="monitoring_records")
     cpu_usage = models.FloatField()           
     ram_usage = models.FloatField()          
     latency_ms = models.FloatField()          
-    request_count = models.IntegerField()
-    error_count = models.IntegerField()
-
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -20,19 +17,19 @@ class DeploymentMonitoringRecord(models.Model):
 
 
 class DeploymentStats(models.Model):         
-    deployement = models.OneToOneField(Deployment, on_delete=models.CASCADE, related_name="deployement_stats")
+    deployement = models.OneToOneField(Deployement, on_delete=models.CASCADE, related_name="deployement_stats")
     cpu_usage = models.FloatField()           
     ram_usage = models.FloatField()          
     latency_ms = models.FloatField()          
     request_count = models.IntegerField()
     error_count = models.IntegerField()
-    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"stats for {deployement.name} at {created_at}"
+        return f"stats for {self.deployement.name} at {self.created_at}"
 
 class  DeploymentAlert(models.Model):
     ALERT_TYPES=[
@@ -43,7 +40,7 @@ class  DeploymentAlert(models.Model):
         ("container_stopped", "Docker container stopped"),
     ]
  
-    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="alerts")
+    deployment = models.ForeignKey(Deployement, on_delete=models.CASCADE, related_name="alerts")
     alert_type = models.CharField(max_length=50, choices=ALERT_TYPES)
     message = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)

@@ -1,4 +1,16 @@
 from django.urls import path
+
+from .views import (
+    DeploymentStatsAPIView,
+    DeploymentAlertsAPIView,
+    ReceiveMetricsAPIView,
+    ResolveAlertAPIView
+)
+
 urlpatterns = [
-    # Define your user-related URL patterns here
+    path("deployments/<int:deployment_id>/stats/", DeploymentStatsAPIView.as_view(), name="deployment-stats"),
+    path("deployments/<int:deployment_id>/records/", DeploymentAlertsAPIView.as_view(), name="deployment-records"),
+    path("deployments/<int:deployment_id>/alerts/", ReceiveMetricsAPIView.as_view(), name="deployment-alerts"),
+    path("alerts/<uuid:alert_id>/resolve/",ResolveAlertAPIView.as_view(), name="resolve-alert"),
 ]
+

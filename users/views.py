@@ -19,7 +19,7 @@ class RegisterUserView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            send_activation_email(user, request)
+            send_activation_email(User, request)
             return Response(   
                 {"message": "Account created successfully. Please check your email to activate your account."},status=status.HTTP_201_CREATED
             )
@@ -63,13 +63,11 @@ class LoginView(APIView):
         
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
-    
-
     def post(self, request):
         try:
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(status=status.HTTP_205_RESET_CONTENT)
-        except EXCEPTION as e:
+        except token.DoesNotExist as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
