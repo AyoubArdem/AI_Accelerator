@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import Deployment, ModelVersion, Projet
 
@@ -6,12 +7,28 @@ class ProjetSerializer(serializers.ModelSerializer):
         model = Projet
         fields = ['id', 'owner', 'name', 'description', 'created_at', 'updated_at']
 
+    def validate_owner(self, value):
+        if not value:
+            raise serializers.ValidationError("Owner field cannot be empty.")
+        if value != settings.AUTH_USER_MODEL:
+            raise serializers.ValidationError("Owner must be a valid user that you have registered.")
+        return value
+
 
 class ModelVersionSerializer(serializers.ModelSerializer):
     projet = ProjetSerializer(read_only=True)
     class Meta:
         model = ModelVersion
         fields = ['id', 'projet', 'description', 'field_file', 'created_at', 'updated_at', 'deployed']
+
+    def validate_field_file(self, value):
+        if not value.name.endswith(('.pkl', '.joblib', '.h5', '.pt')):
+            raise serializers.ValidationError("Unsupported file type. Please upload a valid model file.")
+        return value
+    def validate_projet(self, value):
+        if not Projet.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("The specified project does not exist.")
+        return value
     
    
 class DeploymentSerializer(serializers.ModelSerializer):

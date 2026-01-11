@@ -1,10 +1,10 @@
 from django.shortcuts import render
-from rest_framework import viewsets
+from rest_framework import viewsets , generics
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated 
-from .serializers import PolicySerializer, PolicyAssignmentSerializer, AuditLogSerializer, ViolationSerializer
+from .serializers import PolicySerializer, PolicyAssignmentSerializer, AuditLogSerializer, ViolationSerializer , AlertSerializer
 from rest_framework.response import Response
-from .models import Policy, PolicyAssignment, AuditLog ,PolicyViolation
+from .models import Policy, PolicyAssignment, AuditLog ,PolicyViolation , Alert
 from .permission import IsPolicyAdmin
 # Create your views here.
 
@@ -15,6 +15,11 @@ class PolicyViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+class PolicyDelete(generics.DestroyAPIView):
+    queryset = Policy.objects.all()
+    serializer_class = PolicySerializer
+    permission_classes = [IsPolicyAdmin]
 
 class PolicyAssignmentViewSet(viewsets.ModelViewSet):
     queryset = PolicyAssignment.objects.all()
@@ -36,3 +41,8 @@ class PolicyViolationViewSet(APIView):
         violations = PolicyViolation.objects.all()
         serializer = ViolationSerializer(violations, many=True)
         return Response(serializer.data)
+
+class AlertViewSet(viewsets.ModelViewSet):
+    queryset = Alert.objects.all()
+    serializer_class = AlertSerializer
+    permission_classes = [IsPolicyAdmin]

@@ -1,6 +1,6 @@
-from dataclasses import fields
+
 from rest_framework import serializers
-from .models import Policy, PolicyAssignment, AuditLog, PolicyViolation
+from .models import Alert, Policy, PolicyAssignment, AuditLog, PolicyViolation
 
 
 class PolicySerializer(serializers.ModelSerializer):
@@ -41,3 +41,9 @@ class ViolationSerializer(serializers.ModelSerializer):
     class Meta:
         model = PolicyViolation
         fields = "violation_metrics"
+
+class AlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Alert
+        fields = "__all__"
+        read_only_fields = ("sent", "created_at")

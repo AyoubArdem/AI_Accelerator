@@ -3,16 +3,31 @@ from .models import Deployment, ModelVersion, Projet
 from .serializers import DeploymentSerializer, ModelVersionSerializer, ProjetSerializer
 from rest_framework import viewsets , generics
 from rest_framework.permissions import IsAuthenticated
-from .Celery import deploy_model_task
+from rest_framework import generics 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .Tasks import deploy_model_task
 
 # Create your views here.
 
-class ProjectViewSet(viewsets.ModelViewset):
+class ProjectViewSet(generics.ListCreateAPIView):
     queryset = Projet.objects.all()
     serializer_class = ProjetSerializer
     permission_classes = [IsAuthenticated]
 
-class ModelVersionViewset(viewsets.ModelViewset):
+
+
+class ProjectDelete(generics.RetrieveAPIView):
+    queryset = Projet.objects.all()
+    serializer_class = ProjetSerializer
+    permission_classes = [IsAuthenticated]
+
+class ModelVersionViewset(generics.ListCreateAPIView):
+    queryset = ModelVersion.objects.all()
+    serializer_class = ModelVersionSerializer
+    permission_classes = [IsAuthenticated]
+
+class ModelVersionDelete(generics.RetrieveAPIView):
     queryset = ModelVersion.objects.all()
     serializer_class = ModelVersionSerializer
     permission_classes = [IsAuthenticated]
@@ -24,8 +39,7 @@ class CreateDeploymentView(viewsets.ModelViewset):
 
     def perform_create(self, serializer):
         deployement=serializer.save(status=Deployment.StatusChoices.PENDING)
-    
-    deploy_model_task.delay(deployement.id)
+        deploy_model_task.delay(deployement.id)
 
 class ListDeploymentsView(generics.ListAPIView):
     serializer_class = DeploymentSerializer
