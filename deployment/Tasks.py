@@ -4,6 +4,7 @@ import shutil
 from django.conf import settings
 from celery import shared_task
 from deployment.models import Deployment 
+from governance.utils import LogAction
 
 @shared_task(bind=True, max_retries=3, soft_time_limit=300, time_limit=400)
 def deploy_model_task(self, deployment_id):
@@ -52,10 +53,42 @@ def deploy_model_task(self, deployment_id):
 
         
         deploy.docker_container_id = container_id
-        deploy.endpoint_url = f"http://YOUR_SERVER_IP:{deploy.port}/predict"
+        deploy.endpoint_url = f"http://localhost:{deploy.port}/predict"
         deploy.status = "active"
         deploy.save()
-        
+
+        if deploy.user.role == "admin": 
+                role_permissions = { "role": "admin", "permissions": [ "deployment:*", "monitoring:*", "governance:*", "audit:read" ] }
+
+        elif deploy.user.role == "engineer":
+            role_permissions = { "role": "engineer", "permissions": [ "deployment:read", "deployment:write", "monitoring:read" ] }
+
+        else: role_permissions = { "role": "auditor", "permissions": [ "audit:read" ] }
+
+        meta_data = {
+            "role_permissions": [
+                role_permissions
+            ], 
+            "deployment": [
+              {
+                "id": deploy.id,
+                "name": deploy.name,
+                "port": deploy.port,
+                "status": deploy.status
+               }
+            ],
+            "monitoring": {
+                "enabled": True,
+                
+            }
+        }
+        LogAction(
+            user=deploy.user,
+            action="DEPLOY",
+            description=f"Deployment started for model version {deploy.model_version.name}",
+            metadata=meta_data
+        ).save()
+
         from monitoring.Tasks import start_monitor_agent
         start_monitor_agent.delay(deployment_id)
         return {"status": "success"}

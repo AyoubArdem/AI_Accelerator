@@ -1,10 +1,10 @@
 from aiac.client import AIACClient
 import typer
-from rich.console import Console
+from aiac.console import console , print_info , print_message , print_warning
 from rich.table import Table
 
 Table = Table()
-console = Console()
+
 
 api_app_deployment = typer.Typer(help="Deployment commands")
 
@@ -31,7 +31,8 @@ def create_deployment(owner: str = typer.Option(..., prompt=True, help="Owner of
 @api_app_deployment.command("create-model-version")
 def create_model_version(project_id: int = typer.Option(..., prompt=True, help="ID of the project"),
                          description: str = typer.Option(..., prompt=True, help="Description of the model version"),
-                         field_file_path: str = typer.Option(..., prompt=True, help="Path to the model file")):
+                         field_file_path: str = typer.Option(..., prompt=True, help="Path to the model file"),
+                         sample_data: str = typer.Option(...,prompt=True, help="Path to the sample data CSV file")):
     
     """
     Create a new model version for a specified project.
@@ -42,6 +43,7 @@ def create_model_version(project_id: int = typer.Option(..., prompt=True, help="
             "project_id": project_id,
             "description": description,
             "field_file": field_file_path,
+            "sample_data": sample_data,
         }
     response = client.api_request(endpoint="model-versions/", method="POST", data=data)
     if response.status_code == 201:

@@ -2,17 +2,20 @@ from django.shortcuts import render
 from rest_framework import generics,status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from deployment.models import Deployment
+from deployment.models import Deployment, ModelVersion
 from rest_framework.response import Response
 from .models import (
+    DataDrift,
     DeploymentStats,
     DeploymentAlert
 )
 from .serializers import (
     DeploymentMonitoringRecordSerializer,
     DeploymentStatsSerializer,
-    DeploymentAlertSerializer
+    DeploymentAlertSerializer,
+    DataDriftSerializer
       )
+from monitoring.models import Samples
 
 class DeploymentStatsAPIView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
@@ -118,3 +121,29 @@ class ResolveAlertAPIView(APIView):
         alert.save()
 
         return Response({"status": "resolved"}, status=200)
+
+class GetSamplesAPIView(generics.CreateAPIViewAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DeploymentAlertSerializer
+
+    def post(self, request, model_version_id):
+        try:
+            model_version = ModelVersion.objects.get(id=model_version_id)
+        except ModelVersion.DoesNotExist:
+            return Response({"error": "Model version not found"}, status=404)
+        if request.method == 'POST':
+            data_samples = request.data.get('data_samples', [])
+            for sample_data in data_samples:
+                Samples.objects.create(
+                    model_version=model_version,
+                    data=sample_data
+                )
+            return Response({"status": "samples saved"}, status=201)
+        
+class DataDriftAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DataDriftSerializer
+
+    def get_queryset(self):
+        model_version_id = self.kwargs["model_version_id"]
+        return DataDrift.objects.filter(model_version=model_version_id).order_by("-detected_at")

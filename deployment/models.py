@@ -18,6 +18,7 @@ class ModelVersion(models.Model):
     projet = models.ForeignKey(Projet, on_delete=models.CASCADE, related_name='model_versions') 
     description = models.TextField(blank=True, null=True)
     field_file = models.FileField(upload_to='model_versions/')
+    sample_data = models.CSVField(size_limit=10485760, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deployed = models.BooleanField(default=False)

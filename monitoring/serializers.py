@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from .models import (
+    DataDrift,
     DeploymentMonitoringRecord,
     DeploymentStats,
-    DeploymentAlert
+    DeploymentAlert,
+    Samples
 )
 
 class DeploymentMonitoringRecordSerializer(serializers.ModelSerializer):
@@ -55,3 +57,26 @@ class DeploymentAlertSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+class SamplesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Samples
+        fields = [
+            "id",
+            "model_version",
+            "data",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+class DataDriftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DataDrift
+        fields = [
+            "id",
+            "model_version",
+            "detected_at",
+            "description",
+            "features",
+            "sample_count",
+        ]
+        read_only_fields = ["id", "detected_at"]

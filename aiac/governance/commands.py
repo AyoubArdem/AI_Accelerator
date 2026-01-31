@@ -1,10 +1,10 @@
 import typer
 from aiac.client import AIACClient
-from rich.console import Console
+from aiac.console import console
 from rich.table import Table
 
 
-console = Console()
+
 table = Table(title="Governance Policies")
 
 governance_api_app = typer.Typer(help="Governance related commands for AIAC.")

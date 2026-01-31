@@ -1,5 +1,6 @@
+import uuid
 from django.db import models
-from deployment.models import Deployement
+from deployment.models import Deployement , ModelVersion
 from django.utils import timezone
 
 class DeploymentMonitoringRecord(models.Model):
@@ -49,3 +50,37 @@ class  DeploymentAlert(models.Model):
     def __str__(self):
         return f"{self.alert_type} for {self.deployment.name}"
 
+
+class BaseDrift(models.Model):
+    model_version = models.OneToOneField(ModelVersion, on_delete=models.CASCADE, related_name="drifts")
+    detected_at = models.DateTimeField(default=timezone.now)
+    description = models.TextField(max_length=600,blank=True,null=True)
+    features = models.JSONField(default=dict)
+    sample_count = models.IntegerField()
+
+    def __str__(self):
+        return f"Drift for {self.model_version.name} detected at {self.detected_at}"
+    
+class DataDrift(BaseDrift):
+    id = models.AutoField(primary_key=True, default=uuid.uuid4, editable=False)
+    model_version = models.OneToOneField(ModelVersion, on_delete=models.CASCADE, related_name="data_drifts")
+    kl_divergence = models.FloatField()
+    wasserstein_distance = models.FloatField()
+    ks_statistic = models.FloatField()
+    chi_square = models.FloatField()
+    results = models.JSONField(default=dict)  # Store detailed results
+    scanned_at = models.DateTimeField(default=timezone.now)
+
+    class Meta: 
+        ordering = ["-detected_at"]
+
+    def __str__(self):
+        return f"Data Drift for {self.model_version.name} detected at {self.detected_at}"
+
+class Samples(models.Model):
+    model_version =models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name="samples")
+    data = models.FileField(upload_to='samples/')
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Sample for {self.model_version.name} at {self.created_at}"

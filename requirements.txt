@@ -10,8 +10,5 @@ psycopg2-binary
 celery 
 redis 
 tensorflow 
-transformers 
-transformers 
 PyJWT 
-sentry-sdk 
 python-dotenv 

@@ -54,15 +54,14 @@ class AuditLog(models.Model):
     ACTION_CHOICES = [
         ("DEPLOY", "Deploy Model"),
         ("STOP", "Stop Deployment"),
-        ("PREDICT", "Prediction Request"),
-        ("DRIFT_CHECK", "Drift Check"),
-        ("MONITORING_UPDATE", "Monitoring Update"),
+        ("DRIFT_DETECTED", "Data Drift Detected"),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     deployment_id = models.ForeignKey(Deployment , on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE)
     severity = models.CharField(max_length=20, choices=[("low","Low"),("medium","Medium"),("high","High")])
     action = models.CharField(default=ACTION_CHOICES)
+    description = models.TextField(max_length=300)
     service = models.CharField(max_length=25)
     metadata = models.JSONField(default=dict)
     timestamp = models.DateTimeField(default=timezone.now)
