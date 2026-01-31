@@ -42,9 +42,9 @@ Modern AI teams face critical challenges:
         ┌──────────────┼────────────────┐
         │              │                │
 ┌───────▼───────┐ ┌────▼────────┐ ┌─────▼─────────┐
-│ Deployment App │ │ Monitoring  │ │ Governance     │
-│ (Docker + API) │ │ (Drift etc) │ │ (Policies)     │
-└───────────────┘ └─────────────┘ └────────────────┘
+|Deployment App │ │ Monitoring  │ │ Governance    │
+│ (Docker + API)│ │ (Drift etc) │ │ (Policies)    │
+└───────────────┘ └─────────────┘ └───────────────┘
 ```
 
 ---
@@ -155,11 +155,12 @@ Responsible for **policies, compliance, and control**.
             
 
 > metrics:
-    * psi:
-      - enabled: true
-      - warning: 0.1
-      - critical: 0.25
 
+    * psi:
+       - enabled: true
+       - warning: 0.1
+       - critical: 0.25
+    
     * ks_test:
        - enabled: true
        - p_value_threshold: 0.05
@@ -168,13 +169,7 @@ Responsible for **policies, compliance, and control**.
       - enabled: true
       - warning: 0.2
 
-  on_drift_detected:
-    actions:
-      - alert
-      - create_audit_log
-      # - freeze_deployment
-      # - require_manual_approval
-
+  
 
 **Example policies:**
 
