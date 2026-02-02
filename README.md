@@ -5,7 +5,26 @@
 
 The project aims to be a **core MLOps foundation** for companies, ML teams, and developers who want to move from experimental notebooks to **real production-grade AI systems**.
 
+## 📚 Documentation & Resources
+
+| Document | Description |
+|----------|-------------|
+| [**README.md**](README.md) | Project overview, setup, and usage guide |
+| [**CONSOLE.md**](CONSOLE.md) | Detailed AIAC CLI usage instructions |
+| [**CONTRIBUTING.md**](CONTRIBUTING.md) | Guidelines for contributing to the project |
+| [**CHANGELOG.md**](CHANGELOG.md) | Version history and release notes |
+| [**SECURITY.md**](SECURITY.md) | Security policy and vulnerability reporting |
+| [**CODE_OF_CONDUCT.md**](CODE_OF_CONDUCT.md) | Community standards and behavior guidelines |
+| [**LICENSE**](LICENSE) | MIT License terms |
+
+### 🚀 Quick Start
+- **Setup**: See [Requirements & Dependencies](#-requirements--dependencies) section
+- **API Docs**: Visit `http://127.0.0.1:8000/api/schema/swagger-ui/` after setup
+- **CLI**: See [CONSOLE.md](CONSOLE.md) for command-line usage
+
 ---
+
+## 🎯 Project Vision & Goals
 
 ## 🎯 Project Vision & Goals
 

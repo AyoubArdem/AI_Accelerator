@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/env1
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///db.sqlite3
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    command: python manage.py runserver 0.0.0.0:8000
+    networks:
+      - ai-accelerator
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-accelerator
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ai_accelerator
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai-accelerator
+
+  # Optional: Celery worker
+  celery:
+    build: .
+    command: celery -A AI_Accelerator worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - ai-accelerator
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  ai-accelerator:
+    driver: bridge
