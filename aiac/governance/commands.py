@@ -10,42 +10,54 @@ table = Table(title="Governance Policies")
 governance_api_app = typer.Typer(help="Governance related commands for AIAC.")
 
 @governance_api_app.command("create-policy")
-def create_policy(name: str, policy_type: str, description: str="", rules: dict="{}"):
+def create_policy(name: str, policy_type: str, description: str = "", rules: str = "{}"):
     """Create a new governance policy."""
-
-    data = {
-        "name": name,
-        "policy_type": policy_type,
-        "description": description,
-        "rules": rules
-    }
 
     client = AIACClient()
 
-    response = client.post("/policies/", json=data)
+    try:
+        # Parse rules if it's a string
+        if isinstance(rules, str):
+            import json
+            rules = json.loads(rules)
 
-    if response.status_code == 201:
+        data = {
+            "name": name,
+            "policy_type": policy_type,
+            "description": description,
+            "rules": rules
+        }
+
+        response = client.api_request("/policies/", method="POST", data=data)
         typer.echo(f"Policy '{name}' created successfully.")
-    else:
-        typer.echo(f"Failed to create policy. Status code: {response.status_code}, Response: {response.text}")
+    except Exception as e:
+        typer.echo(f"Failed to create policy: {str(e)}")
 
 @governance_api_app.command("list-policies")
-def List_policies():
+def list_policies():
     """List all governance policies."""
 
     client = AIACClient()
-    response = client.get("/policies/")
+    try:
+        policies = client.api_request("/policies/")
 
-    if response.status_code == 200:
-        policies = response.json()
+        table = Table(title="Governance Policies")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Name", style="magenta")
+        table.add_column("Type", style="green")
+        table.add_column("Description")
+
         for policy in policies:
-            typer.echo(f"Policy: {policy['name']}, Type: {policy['policy_type']}")
-            table.add_row("----", "----", "----", "----")
-            table.add_column("ID", "rules", "Description", justify="right", style="cyan", no_wrap=True)
-            table.add_row(str(policy['id']), str(policy['rules']), policy['description'])
+            table.add_row(
+                str(policy['id']),
+                policy['name'],
+                policy['policy_type'],
+                policy.get('description', '')
+            )
+
         console.print(table)
-    else:
-        typer.echo(f"Failed to retrieve policies. Status code: {response.status_code}, Response: {response.text}")
+    except Exception as e:
+        typer.echo(f"Failed to retrieve policies: {str(e)}")
 
 @governance_api_app.command("delete-policy")
 def delete_policy(policy_id: int):

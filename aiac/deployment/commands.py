@@ -1,10 +1,7 @@
 from aiac.client import AIACClient
 import typer
-from aiac.console import console , print_info , print_message , print_warning
+from aiac.console import console, print_info, print_message, print_warning
 from rich.table import Table
-
-Table = Table()
-
 
 api_app_deployment = typer.Typer(help="Deployment commands")
 
@@ -22,11 +19,11 @@ def create_deployment(owner: str = typer.Option(..., prompt=True, help="Owner of
         "description": description,
       
     }
-    response = client.api_request(endpoint="projects/", method="POST", data=data)
-    if response.status_code == 201:
+    try:
+        response = client.api_request(endpoint="projects/", method="POST", data=data)
         typer.echo(f"Project created successfully: {response}")
-    else:
-        typer.echo(f"Failed to create project: {response}")
+    except Exception as e:
+        typer.echo(f"Failed to create project: {str(e)}")
 
 @api_app_deployment.command("create-model-version")
 def create_model_version(project_id: int = typer.Option(..., prompt=True, help="ID of the project"),
@@ -45,11 +42,11 @@ def create_model_version(project_id: int = typer.Option(..., prompt=True, help="
             "field_file": field_file_path,
             "sample_data": sample_data,
         }
-    response = client.api_request(endpoint="model-versions/", method="POST", data=data)
-    if response.status_code == 201:
+    try:
+        response = client.api_request(endpoint="model-versions/", method="POST", data=data)
         typer.echo(f"Model version created successfully: {response}")
-    else:
-        typer.echo(f"Failed to create model version: {response}")
+    except Exception as e:
+        typer.echo(f"Failed to create model version: {str(e)}")
 
 @api_app_deployment.command("deploy-model-version")
 def deploy_model_version(user_id: int = typer.Option(..., prompt=True, help="ID of the user deploying the model"),
