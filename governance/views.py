@@ -34,13 +34,12 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AuditLogSerializer
     permission_classes = [IsPolicyAdmin]
 
-class PolicyViolationViewSet(APIView):
+class PolicyViolationViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = PolicyViolation.objects.all()
+    serializer_class = ViolationSerializer
     permission_classes = [IsPolicyAdmin]
 
-    def get(self, request):
-        violations = PolicyViolation.objects.all()
-        serializer = ViolationSerializer(violations, many=True)
-        return Response(serializer.data)
+    
 
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all()

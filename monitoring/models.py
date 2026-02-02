@@ -1,10 +1,10 @@
 import uuid
 from django.db import models
-from deployment.models import Deployement , ModelVersion
+from deployment.models import Deployment , ModelVersion
 from django.utils import timezone
 
 class DeploymentMonitoringRecord(models.Model):
-    deployment = models.ForeignKey(Deployement, on_delete=models.CASCADE, related_name="monitoring_records")
+    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="monitoring_records")
     cpu_usage = models.FloatField()           
     ram_usage = models.FloatField()          
     latency_ms = models.FloatField()          
@@ -18,7 +18,7 @@ class DeploymentMonitoringRecord(models.Model):
 
 
 class DeploymentStats(models.Model):         
-    deployement = models.OneToOneField(Deployement, on_delete=models.CASCADE, related_name="deployement_stats")
+    deployment = models.OneToOneField(Deployment, on_delete=models.CASCADE, related_name="deployment_stats")
     cpu_usage = models.FloatField()           
     ram_usage = models.FloatField()          
     latency_ms = models.FloatField()          
@@ -27,7 +27,7 @@ class DeploymentStats(models.Model):
     updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-updated_at"]
 
     def __str__(self):
         return f"stats for {self.deployement.name} at {self.created_at}"
@@ -41,7 +41,7 @@ class  DeploymentAlert(models.Model):
         ("container_stopped", "Docker container stopped"),
     ]
  
-    deployment = models.ForeignKey(Deployement, on_delete=models.CASCADE, related_name="alerts")
+    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="alerts")
     alert_type = models.CharField(max_length=50, choices=ALERT_TYPES)
     message = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)
@@ -61,8 +61,7 @@ class BaseDrift(models.Model):
     def __str__(self):
         return f"Drift for {self.model_version.name} detected at {self.detected_at}"
     
-class DataDrift(BaseDrift):
-    id = models.AutoField(primary_key=True, default=uuid.uuid4, editable=False)
+class DataDrift(models.Model):
     model_version = models.OneToOneField(ModelVersion, on_delete=models.CASCADE, related_name="data_drifts")
     kl_divergence = models.FloatField()
     wasserstein_distance = models.FloatField()
@@ -72,10 +71,10 @@ class DataDrift(BaseDrift):
     scanned_at = models.DateTimeField(default=timezone.now)
 
     class Meta: 
-        ordering = ["-detected_at"]
+        ordering = ["-scanned_at"]
 
     def __str__(self):
-        return f"Data Drift for {self.model_version.name} detected at {self.detected_at}"
+        return f"Data Drift for {self.model_version.name} detected at {self.scanned_at}"
 
 class Samples(models.Model):
     model_version =models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name="samples")

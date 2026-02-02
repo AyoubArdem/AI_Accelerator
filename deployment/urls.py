@@ -21,7 +21,7 @@ urlpatterns = [
     path("projects/<int:pk>/delete/", ProjectDelete.as_view()),
     path("model-versions/", ModelVersionViewset.as_view()),
     path("model-versions/<int:pk>/delete/", ModelVersionDelete.as_view()),
-    path("deployments/", CreateDeploymentView.as_view()),
+    path("deployments/", CreateDeploymentView.as_view({"get": "list", "post": "create"})),
     path("deployments/list/", ListDeploymentsView.as_view()),
     path("deployments/<int:id>/", DeploymentDetailView.as_view()),
     path("deployments/<int:deployment_id>/redeploy/", RedeployView.as_view()),

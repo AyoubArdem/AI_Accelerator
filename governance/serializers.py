@@ -6,20 +6,20 @@ from .models import Alert, Policy, PolicyAssignment, AuditLog, PolicyViolation
 class PolicySerializer(serializers.ModelSerializer):
     class Meta:
         model = Policy
-        fields = "__all__"
-        read_only_fields = ("created_by", "created_at")
+        fields = ["id", "name", "description", "rules", "created_by", "created_at"]
+        read_only_fields = ["created_by", "created_at"]
 
 class PolicyAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PolicyAssignment
-        fields = "__all__"
-        read_only_fields = ("applied_at","applied_by")
+        fields = ["id", "policy", "deployment", "applied_by", "applied_at"]
+        read_only_fields = ["applied_at", "applied_by"]
 
 class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
-        fields = "__all__"
-        read_only_fields = ("timestamp")
+        fields = ["id", "deployment", "user", "severity", "action", "description", "service", "metadata", "timestamp"]
+        read_only_fields = ["timestamp"]
 
 class ViolationSerializer(serializers.ModelSerializer):
     violation_metrics = serializers.SerializerMethodField(method_name='get_violation_metrics')
@@ -40,10 +40,10 @@ class ViolationSerializer(serializers.ModelSerializer):
         }
     class Meta:
         model = PolicyViolation
-        fields = "violation_metrics"
+        fields = ["violation_metrics"]
 
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
-        fields = "__all__"
-        read_only_fields = ("sent", "created_at")
+        fields = ["id", "policy_violation", "message", "sent", "timestamp"]
+        read_only_fields = ["sent", "timestamp"]

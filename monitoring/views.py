@@ -122,7 +122,7 @@ class ResolveAlertAPIView(APIView):
 
         return Response({"status": "resolved"}, status=200)
 
-class GetSamplesAPIView(generics.CreateAPIViewAPIView):
+class GetSamplesAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = DeploymentAlertSerializer
 

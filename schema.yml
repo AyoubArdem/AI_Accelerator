@@ -1,0 +1,1502 @@
+openapi: 3.0.3
+info:
+  title: AI_Accelerator
+  version: 1.0.0
+  description: AI Accelerator is a SaaS platform designed to help small and medium-sized
+    enterprises (SMEs) accelerate the adoption of Artificial Intelligence by simplifying
+    the process of deploying, monitoring, and managing AI models. The platform bridges
+    the gap between AI experimentation and production, enabling companies to leverage
+    AI effectively without requiring large ML/DevOps teams.
+paths:
+  /api/deployment/deployments/:
+    get:
+      operationId: deployment_deployments_list
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deployment'
+          description: ''
+    post:
+      operationId: deployment_deployments_create
+      tags:
+      - deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+          description: ''
+  /api/deployment/deployments/{deployment_id}/delete/:
+    delete:
+      operationId: deployment_deployments_delete_destroy
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/deployment/deployments/{deployment_id}/redeploy/:
+    post:
+      operationId: deployment_deployments_redeploy_create
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+          description: ''
+  /api/deployment/deployments/{deployment_id}/stop/:
+    post:
+      operationId: deployment_deployments_stop_create
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Deployment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+          description: ''
+  /api/deployment/deployments/{id}/:
+    get:
+      operationId: deployment_deployments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+          description: ''
+  /api/deployment/deployments/list/:
+    get:
+      operationId: deployment_deployments_list_list
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deployment'
+          description: ''
+  /api/deployment/model-versions/:
+    get:
+      operationId: deployment_model_versions_list
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelVersion'
+          description: ''
+    post:
+      operationId: deployment_model_versions_create
+      tags:
+      - deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelVersion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ModelVersion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ModelVersion'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelVersion'
+          description: ''
+  /api/deployment/model-versions/{id}/delete/:
+    get:
+      operationId: deployment_model_versions_delete_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelVersion'
+          description: ''
+  /api/deployment/projects/:
+    get:
+      operationId: deployment_projects_list
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Projet'
+          description: ''
+    post:
+      operationId: deployment_projects_create
+      tags:
+      - deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Projet'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Projet'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Projet'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Projet'
+          description: ''
+  /api/deployment/projects/{id}/delete/:
+    get:
+      operationId: deployment_projects_delete_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deployment
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Projet'
+          description: ''
+  /api/governance/alerts/:
+    get:
+      operationId: governance_alerts_list
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+          description: ''
+    post:
+      operationId: governance_alerts_create
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Alert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Alert'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+          description: ''
+  /api/governance/alerts/{id}/:
+    get:
+      operationId: governance_alerts_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this alert.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+          description: ''
+    put:
+      operationId: governance_alerts_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this alert.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Alert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Alert'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+          description: ''
+    patch:
+      operationId: governance_alerts_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this alert.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAlert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAlert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAlert'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+          description: ''
+    delete:
+      operationId: governance_alerts_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this alert.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/governance/audit-logs/:
+    get:
+      operationId: governance_audit_logs_list
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/governance/audit-logs/{id}/:
+    get:
+      operationId: governance_audit_logs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this audit log.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/governance/delete-policy/{id}/:
+    delete:
+      operationId: governance_delete_policy_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/governance/policies/:
+    get:
+      operationId: governance_policies_list
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Policy'
+          description: ''
+    post:
+      operationId: governance_policies_create
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Policy'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Policy'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Policy'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+          description: ''
+  /api/governance/policies/{id}/:
+    get:
+      operationId: governance_policies_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+          description: ''
+    put:
+      operationId: governance_policies_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Policy'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Policy'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Policy'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+          description: ''
+    patch:
+      operationId: governance_policies_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicy'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicy'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicy'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+          description: ''
+    delete:
+      operationId: governance_policies_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/governance/policy-assignments/:
+    get:
+      operationId: governance_policy_assignments_list
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyAssignment'
+          description: ''
+    post:
+      operationId: governance_policy_assignments_create
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAssignment'
+          description: ''
+  /api/governance/policy-assignments/{id}/:
+    get:
+      operationId: governance_policy_assignments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy assignment.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAssignment'
+          description: ''
+    put:
+      operationId: governance_policy_assignments_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy assignment.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PolicyAssignment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAssignment'
+          description: ''
+    patch:
+      operationId: governance_policy_assignments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy assignment.
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicyAssignment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicyAssignment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPolicyAssignment'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAssignment'
+          description: ''
+    delete:
+      operationId: governance_policy_assignments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy assignment.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/governance/policy-violations/:
+    get:
+      operationId: governance_policy_violations_list
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Violation'
+          description: ''
+  /api/governance/policy-violations/{id}/:
+    get:
+      operationId: governance_policy_violations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this policy violation.
+        required: true
+      tags:
+      - governance
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Violation'
+          description: ''
+  /api/monitoring/alerts/{alert_id}/resolve/:
+    post:
+      operationId: monitoring_alerts_resolve_create
+      parameters:
+      - in: path
+        name: alert_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/monitoring/deployments/{deployment_id}/alerts/:
+    post:
+      operationId: monitoring_deployments_alerts_create
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/monitoring/deployments/{deployment_id}/records/:
+    get:
+      operationId: monitoring_deployments_records_list
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentAlert'
+          description: ''
+  /api/monitoring/deployments/{deployment_id}/stats/:
+    get:
+      operationId: monitoring_deployments_stats_retrieve
+      parameters:
+      - in: path
+        name: deployment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentStats'
+          description: ''
+  /api/monitoring/deployments/samples/:
+    post:
+      operationId: monitoring_deployments_samples_create
+      tags:
+      - monitoring
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentAlert'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeploymentAlert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeploymentAlert'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentAlert'
+          description: ''
+  /api/monitoring/drifts/{model_version_id}/:
+    get:
+      operationId: monitoring_drifts_list
+      parameters:
+      - in: path
+        name: model_version_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataDrift'
+          description: ''
+  /api/users/activate/{uid}/{token}/:
+    get:
+      operationId: users_activate_retrieve
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: uid
+        schema:
+          type: string
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/users/login/:
+    post:
+      operationId: users_login_create
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/users/logout/:
+    post:
+      operationId: users_logout_create
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/users/register/:
+    post:
+      operationId: users_register_create
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - DEPLOY
+      - STOP
+      - DRIFT_DETECTED
+      type: string
+      description: |-
+        * `DEPLOY` - Deploy Model
+        * `STOP` - Stop Deployment
+        * `DRIFT_DETECTED` - Data Drift Detected
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        policy_violation:
+          type: integer
+          nullable: true
+        message:
+          type: string
+          maxLength: 300
+        sent:
+          type: boolean
+          readOnly: true
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - message
+      - sent
+      - timestamp
+    AlertTypeEnum:
+      enum:
+      - high_cpu
+      - high_ram
+      - latency_spike
+      - model_down
+      - container_stopped
+      type: string
+      description: |-
+        * `high_cpu` - High CPU Usage
+        * `high_ram` - High RAM Usage
+        * `latency_spike` - Latency Spike
+        * `model_down` - Model is not responding
+        * `container_stopped` - Docker container stopped
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        deployment:
+          type: integer
+        user:
+          type: integer
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        description:
+          type: string
+          maxLength: 300
+        service:
+          type: string
+          maxLength: 25
+        metadata: {}
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - deployment
+      - description
+      - id
+      - service
+      - severity
+      - timestamp
+      - user
+    DataDrift:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        model_version:
+          type: integer
+        kl_divergence:
+          type: number
+          format: double
+        wasserstein_distance:
+          type: number
+          format: double
+        ks_statistic:
+          type: number
+          format: double
+        chi_square:
+          type: number
+          format: double
+        results: {}
+        scanned_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - chi_square
+      - id
+      - kl_divergence
+      - ks_statistic
+      - model_version
+      - scanned_at
+      - wasserstein_distance
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+        docker_container_id:
+          type: string
+          readOnly: true
+          nullable: true
+        model_version:
+          type: integer
+        deployed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        port:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        endpoint_url:
+          type: string
+          format: uri
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        logs:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - deployed_at
+      - docker_container_id
+      - endpoint_url
+      - id
+      - logs
+      - model_version
+      - status
+    DeploymentAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        deployment:
+          type: integer
+        alert_type:
+          $ref: '#/components/schemas/AlertTypeEnum'
+        alert_type_display:
+          type: string
+          readOnly: true
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved:
+          type: boolean
+      required:
+      - alert_type
+      - alert_type_display
+      - created_at
+      - deployment
+      - id
+      - message
+    DeploymentStats:
+      type: object
+      properties:
+        deployment:
+          type: integer
+        cpu_usage:
+          type: number
+          format: double
+        ram_usage:
+          type: number
+          format: double
+        latency_ms:
+          type: number
+          format: double
+        request_count:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        error_count:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cpu_usage
+      - deployment
+      - error_count
+      - latency_ms
+      - ram_usage
+      - request_count
+      - updated_at
+    ModelVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        projet:
+          allOf:
+          - $ref: '#/components/schemas/Projet'
+          readOnly: true
+        description:
+          type: string
+          nullable: true
+        field_file:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        deployed:
+          type: boolean
+      required:
+      - created_at
+      - field_file
+      - id
+      - projet
+      - updated_at
+    PatchedAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        policy_violation:
+          type: integer
+          nullable: true
+        message:
+          type: string
+          maxLength: 300
+        sent:
+          type: boolean
+          readOnly: true
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedPolicy:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        rules: {}
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedPolicyAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        policy:
+          type: integer
+        deployment:
+          type: integer
+        applied_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        applied_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Policy:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        rules: {}
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - name
+    PolicyAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        policy:
+          type: integer
+        deployment:
+          type: integer
+        applied_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        applied_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - applied_at
+      - applied_by
+      - deployment
+      - id
+      - policy
+    Projet:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        owner:
+          type: integer
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - owner
+      - updated_at
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - email
+      - password
+      - username
+    RoleEnum:
+      enum:
+      - admin
+      - developer
+      - client
+      type: string
+      description: |-
+        * `admin` - ADMIN
+        * `developer` - DEVELOPER
+        * `client` - CLIENT
+    SeverityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+    StatusEnum:
+      enum:
+      - PENDING
+      - DEPLOYING
+      - ACTIVE
+      - STOPPED
+      - FAILED
+      - DELETED
+      type: string
+      description: |-
+        * `PENDING` - Pending
+        * `DEPLOYING` - deploying
+        * `ACTIVE` - Active
+        * `STOPPED` - Stopped
+        * `FAILED` - Failed
+        * `DELETED` - deleted
+    Violation:
+      type: object
+      properties:
+        violation_metrics:
+          type: string
+          readOnly: true
+      required:
+      - violation_metrics
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

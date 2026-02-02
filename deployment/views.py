@@ -32,7 +32,7 @@ class ModelVersionDelete(generics.RetrieveAPIView):
     serializer_class = ModelVersionSerializer
     permission_classes = [IsAuthenticated]
 
-class CreateDeploymentView(viewsets.ModelViewset):
+class CreateDeploymentView(viewsets.ModelViewSet):
     queryset = Deployment.objects.all()
     serializer_class = DeploymentSerializer
     permission_classes = [IsAuthenticated]
@@ -49,13 +49,15 @@ class ListDeploymentsView(generics.ListAPIView):
         return Deployment.objects.filter(user=self.request.user)
 
 
-class DeploymentDetailView(generics.ListApiView):
-    queryset = Deployment.objects.get(id=id)
-    serializer_class =  DeploymentSerializer()
-    permission_class = [IsAuthenticated]
+class DeploymentDetailView(generics.RetrieveAPIView):
+    queryset = Deployment.objects.all()
+    serializer_class =  DeploymentSerializer
+    permission_classes = [IsAuthenticated]
 
-
-class RedeployView(APIView):
+class RedeployView(generics.GenericAPIView):
+    serializer_class = DeploymentSerializer
+    permission_classes = [IsAuthenticated]
+    
     def post(self, request, deployment_id):
         try:
             deploy_model_task.delay(deployment_id)
@@ -67,7 +69,10 @@ class RedeployView(APIView):
    
 
 
-class StopDeploymentView(APIView):
+class StopDeploymentView(generics.GenericAPIView):
+    serializer_class = DeploymentSerializer
+    permission_classes = [IsAuthenticated]
+    
     def post(self, request, deployment_id):
         try:
             deployment = Deployment.objects.get(id=deployment_id)
@@ -92,7 +97,10 @@ class StopDeploymentView(APIView):
 
 
 
-class DeleteDeploymentView(APIView):
+class DeleteDeploymentView(generics.GenericAPIView):
+    serializer_class = DeploymentSerializer
+    permission_classes = [IsAuthenticated]
+    
     def delete(self, request, deployment_id):
         try:
             deployment = Deployment.objects.get(id=deployment_id)
@@ -109,7 +117,7 @@ class DeleteDeploymentView(APIView):
             image_name = f"deploy_image_{deployment.id}"
             subprocess.run(["docker", "rmi", image_name], stderr=subprocess.PIPE)
 
-            deployment.status = "deleted"
+            deployment.status = Deployment.StatusChoices.DELETED
             deployment.save()
 
             return Response({"message": "Deployment deleted"})

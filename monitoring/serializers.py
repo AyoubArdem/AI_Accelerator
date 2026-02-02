@@ -74,9 +74,11 @@ class DataDriftSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "model_version",
-            "detected_at",
-            "description",
-            "features",
-            "sample_count",
+            "kl_divergence",
+            "wasserstein_distance",
+            "ks_statistic",
+            "chi_square",
+            "results",
+            "scanned_at",
         ]
-        read_only_fields = ["id", "detected_at"]
+        read_only_fields = ["id", "scanned_at"]

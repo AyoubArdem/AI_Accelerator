@@ -8,7 +8,7 @@ sqlparse
 whitenoise 
 psycopg2-binary 
 celery 
-redis 
+django-redis 
 tensorflow 
 PyJWT 
 python-dotenv 
