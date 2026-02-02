@@ -205,7 +205,114 @@ Responsible for **policies, compliance, and control**.
 
 ---
 
-## 🔐 Security by Design
+## �️ CLI Commands Reference
+
+The AIAC CLI provides comprehensive command-line access to all platform features. Commands are organized into logical groups for easy navigation.
+
+### Authentication Commands
+
+```bash
+# Register a new user account
+aiac auth register
+
+# Login to get access tokens
+aiac auth login
+
+# Logout and invalidate tokens
+aiac auth logout
+```
+
+### Deployment Commands
+
+```bash
+# Project Management
+aiac deployment create-project-deployment    # Create a new project
+aiac deployment list-projects               # List all projects
+aiac deployment delete-project              # Delete a project
+
+# Model Version Management
+aiac deployment create-model-version        # Create a new model version
+aiac deployment list-model-versions         # List all model versions
+aiac deployment delete-model-version        # Delete a model version
+
+# Deployment Operations
+aiac deployment deploy-model-version        # Deploy a model version
+aiac deployment redeploy-model              # Redeploy an existing deployment
+aiac deployment stop-deployment             # Stop a running deployment
+aiac deployment delete-deployment           # Delete a deployment
+aiac deployment list-deployments            # List all deployments
+aiac deployment get-deployment-details      # Get detailed deployment info
+```
+
+### Monitoring Commands
+
+```bash
+# Deployment Monitoring
+aiac monitoring deploy-stats                # View deployment statistics
+aiac monitoring deploy-records              # View deployment monitoring records
+aiac monitoring alert                       # View deployment alerts
+
+# Alert Management
+aiac monitoring resolve-alert               # Resolve a specific alert
+
+# Data Drift Detection
+aiac monitoring detect-drift                # Check for data drift on model version
+aiac monitoring samples                     # Post samples for drift analysis
+```
+
+### Governance Commands
+
+```bash
+# Policy Management
+aiac governance create-policy               # Create a new governance policy
+aiac governance list-policies               # List all governance policies
+aiac governance delete-policy               # Delete a governance policy
+
+# Policy Application
+aiac governance apply-policy                # Apply a policy to a deployment
+
+# Compliance Monitoring
+aiac governance view-violations             # View policy violations
+aiac governance metrics                     # View violation metrics
+aiac governance alert-logs                  # View alert logs for violations
+```
+
+### Command Usage Examples
+
+```bash
+# Complete workflow example
+aiac auth login                                    # Authenticate first
+aiac deployment create-project-deployment          # Create project
+aiac deployment create-model-version               # Add model version
+aiac deployment deploy-model-version               # Deploy the model
+aiac monitoring deploy-stats                       # Monitor performance
+aiac governance create-policy                      # Set up governance
+aiac governance apply-policy                       # Apply policy to deployment
+```
+
+### Interactive Prompts
+
+Most commands use interactive prompts for required parameters:
+
+```bash
+aiac deployment create-project-deployment
+# Will prompt for: owner, project_name, description
+
+aiac deployment deploy-model-version
+# Will prompt for: user_id, model_version_id, port
+```
+
+### Output Formatting
+
+Commands use **Rich** library for beautiful terminal output:
+- 📊 **Tables** for listing data
+- 🎨 **Colored output** for status and warnings
+- 📋 **Structured information** display
+- ⚠️ **Clear error messages** and success confirmations
+
+---
+
+## �🔐 Security by Design
 
 Security is a **core principle**, not an afterthought:
 
@@ -253,7 +360,45 @@ Security is a **core principle**, not an afterthought:
 
 ---
 
-## 🚧 Project Status
+## � API Documentation
+
+The platform provides comprehensive API documentation through **Swagger UI**, allowing you to explore and test all available endpoints interactively.
+
+### Accessing Swagger UI
+
+1. **Start the Django development server:**
+   ```bash
+   python manage.py runserver
+   ```
+
+2. **Open your browser and navigate to:**
+   ```
+   http://127.0.0.1:8000/api/schema/swagger-ui/
+   ```
+
+3. **Alternative documentation formats:**
+   - **Redoc UI:** `http://127.0.0.1:8000/api/schema/redoc/`
+   - **Raw OpenAPI Schema:** `http://127.0.0.1:8000/api/schema/`
+
+### What you'll find in the documentation:
+
+* 🔍 **Interactive API Explorer** - Test endpoints directly from the browser
+* 📋 **Complete endpoint listing** - All available API operations
+* 📝 **Request/Response schemas** - Detailed data structures
+* 🔐 **Authentication requirements** - JWT token usage
+* 📊 **Model schemas** - Data models and relationships
+
+### Authentication
+
+To test protected endpoints, you'll need to:
+
+1. Obtain a JWT token from the authentication endpoints
+2. Click "Authorize" in Swagger UI
+3. Enter your token in the format: `Bearer <your-jwt-token>`
+
+---
+
+## �🚧 Project Status
 
 > 🚀 Actively under development
 > Core architecture is stable and production-oriented
