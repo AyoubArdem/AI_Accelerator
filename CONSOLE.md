@@ -33,16 +33,16 @@ Once the server is running, open a **new terminal window** and start using the A
 source env1/Scripts/activate  # On Windows: env1\Scripts\activate
 
 # Check CLI help
-aiac --help
+python aiac_cli.py --help
 
 # View available command groups
-aiac
+python aiac_cli.py
 
 # Get help for specific command group
-aiac deployment --help
-aiac monitoring --help
-aiac governance --help
-aiac auth --help
+python aiac_cli.py deployment --help
+python aiac_cli.py monitoring --help
+python aiac_cli.py governance --help
+python aiac_cli.py auth --help
 ```
 
 ### Complete Setup and Usage Workflow
@@ -56,30 +56,30 @@ python manage.py runserver
 source env1/Scripts/activate
 
 # 1. Register/Login first
-aiac auth register
+python aiac_cli.py auth register
 # or
-aiac auth login
+python aiac_cli.py auth login
 
 # 2. Create and manage projects
-aiac deployment create-project-deployment
-aiac deployment list-projects
+python aiac_cli.py deployment create-project-deployment
+python aiac_cli.py deployment list-projects
 
 # 3. Add model versions
-aiac deployment create-model-version
-aiac deployment list-model-versions
+python aiac_cli.py deployment create-model-version
+python aiac_cli.py deployment list-model-versions
 
 # 4. Deploy models
-aiac deployment deploy-model-version
-aiac deployment list-deployments
+python aiac_cli.py deployment deploy-model-version
+python aiac_cli.py deployment list-deployments
 
 # 5. Monitor deployments
-aiac monitoring deploy-stats
-aiac monitoring detect-drift
+python aiac_cli.py monitoring deploy-stats
+python aiac_cli.py monitoring detect-drift
 
 # 6. Set up governance
-aiac governance create-policy
-aiac governance apply-policy
-aiac governance view-violations
+python aiac_cli.py governance create-policy
+python aiac_cli.py governance apply-policy
+python aiac_cli.py governance view-violations
 ```
 
 ### CLI Configuration

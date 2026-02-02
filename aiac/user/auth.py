@@ -7,7 +7,7 @@ auth_app = typer.Typer(help="user authentication commands")
 def register(username: str = typer.Option(..., prompt=True, help="Username for registration"),
              password: str = typer.Option(..., prompt=True, hide_input=True, help="Password for registration"),
              email: str = typer.Option(..., prompt=True, help="Email address for registration"),
-             role: str = typer.Option(choices=["client", "admin"], prompt=True, help="Role of the user")):
+             role: str = typer.Option(..., prompt=True, help="Role of the user (client or admin)")):
 
     "Register a new user"
     config = get_config()

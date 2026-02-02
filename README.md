@@ -10,6 +10,11 @@ The project aims to be a **core MLOps foundation** for companies, ML teams, and 
 | Document | Description |
 |----------|-------------|
 | [**README.md**](README.md) | Project overview, setup, and usage guide |
+| [**LAUNCH_CHECKLIST.md**](LAUNCH_CHECKLIST.md) | Quick start guide for community building |
+| [**LINKEDIN_GUIDE.md**](LINKEDIN_GUIDE.md) | Complete guide for LinkedIn promotion |
+| [**LINKEDIN_POST.md**](LINKEDIN_POST.md) | Ready-to-use LinkedIn post templates |
+| [**GITHUB_POPULARITY.md**](GITHUB_POPULARITY.md) | Comprehensive guide for GitHub growth |
+| [**COMMUNITY.md**](COMMUNITY.md) | Comprehensive community building strategies |
 | [**CONSOLE.md**](CONSOLE.md) | Detailed AIAC CLI usage instructions |
 | [**CONTRIBUTING.md**](CONTRIBUTING.md) | Guidelines for contributing to the project |
 | [**CHANGELOG.md**](CHANGELOG.md) | Version history and release notes |
