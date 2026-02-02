@@ -359,7 +359,122 @@ Security is a **core principle**, not an afterthought:
 * YAML-based governance policies
 
 ---
+## 📦 Requirements & Dependencies
 
+### System Requirements
+
+- **Python**: 3.8 or higher
+- **Docker**: For containerized model deployment
+- **PostgreSQL**: Primary database (or SQLite for development)
+- **Redis**: For Celery task queue and caching
+
+### Core Dependencies
+
+Install the main requirements:
+
+```bash
+pip install -r requirements.txt
+```
+
+**Main requirements include:**
+- `Django` - Web framework
+- `djangorestframework` - API framework
+- `djangorestframework-simplejwt` - JWT authentication
+- `drf-spectacular` - API documentation
+- `django-cors-headers` - CORS handling
+- `python-decouple` - Environment variable management
+- `psycopg2-binary` - PostgreSQL adapter
+- `celery` - Asynchronous task queue
+- `django-redis` - Redis cache backend
+- `PyJWT` - JWT token handling
+
+### AIAC CLI Dependencies
+
+For the command-line interface:
+
+```bash
+pip install -r aiac/requirments.txt
+```
+
+**CLI requirements include:**
+- `typer` - Command-line interface framework
+- `rich` - Beautiful terminal output
+- `requests` - HTTP client for API calls
+- `click` - Command-line utilities
+
+### Model Deployment Dependencies
+
+For model serving and inference:
+
+```bash
+pip install -r deployment/requirements.txt
+```
+
+**Deployment requirements include:**
+- `fastapi` - High-performance API framework
+- `uvicorn` - ASGI server
+- `numpy`, `scipy`, `pandas` - Data processing
+- `scikit-learn`, `joblib` - Machine learning
+- `torch`, `tensorflow` - Deep learning frameworks
+- `onnxruntime` - Model inference optimization
+
+### Monitoring Dependencies
+
+For system monitoring and drift detection:
+
+```bash
+pip install -r monitoring/requirements.txt
+```
+
+**Monitoring requirements include:**
+- `requests` - API communication
+- `psutil` - System resource monitoring
+- `docker` - Container management
+
+### Development Setup
+
+1. **Create virtual environment:**
+   ```bash
+   python -m venv env1
+   source env1/Scripts/activate  # On Windows
+   # or
+   source env1/bin/activate     # On Linux/Mac
+   ```
+
+2. **Install all dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   pip install -r aiac/requirments.txt
+   pip install -r deployment/requirements.txt
+   pip install -r monitoring/requirements.txt
+   ```
+
+3. **Database setup:**
+   ```bash
+   # For development (SQLite)
+   python manage.py migrate
+
+   # For production (PostgreSQL)
+   # Configure DATABASE_URL in .env file
+   python manage.py migrate
+   ```
+
+4. **Create superuser:**
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+### Optional Dependencies
+
+- **Development tools:**
+  - `black` - Code formatting
+  - `flake8` - Linting
+  - `pytest` - Testing framework
+
+- **Documentation:**
+  - `sphinx` - Documentation generation
+
+---
 ## � API Documentation
 
 The platform provides comprehensive API documentation through **Swagger UI**, allowing you to explore and test all available endpoints interactively.
