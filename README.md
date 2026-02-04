@@ -694,8 +694,6 @@ To test protected endpoints, you'll need to:
 - **Docker Images**: Production-ready
 
 ### Support
-- 📧 **Issues**: [GitHub Issues](https://github.com/AyoubArdem/ai-accelerator/issues)
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/AyoubArdem/ai-accelerator/wiki)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/AyoubArdem/ai-accelerator/discussions)
 
 ---
