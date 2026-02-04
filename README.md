@@ -70,14 +70,6 @@ Visit the interactive API documentation:
 ```bash
 # Check CLI help
 aiac --help
-
-# Authenticate
-aiac auth login
-
-# Create and deploy a model
-aiac deployment create-project-deployment
-aiac deployment create-model-version
-aiac deployment deploy-model-version
 ```
 
 ## 📚 Documentation & Resources
@@ -831,7 +823,6 @@ limitations under the License.
 
 ## 📞 Contact & Support
 
-- **Author**: Ayoub Ardem
 - **Email**: [ayoub.ardem@example.com]
 - **GitHub**: [@AyoubArdem](https://github.com/AyoubArdem)
 - **LinkedIn**: [https://www.linkedin.com/in/ayoub-student-08832b2b3]
