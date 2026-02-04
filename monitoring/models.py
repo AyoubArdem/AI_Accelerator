@@ -7,7 +7,9 @@ class DeploymentMonitoringRecord(models.Model):
     deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="monitoring_records")
     cpu_usage = models.FloatField()           
     ram_usage = models.FloatField()          
-    latency_ms = models.FloatField()          
+    latency_ms = models.FloatField()
+    request_count = models.IntegerField(default=0)
+    error_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -30,7 +32,7 @@ class DeploymentStats(models.Model):
         ordering = ["-updated_at"]
 
     def __str__(self):
-        return f"stats for {self.deployement.name} at {self.created_at}"
+        return f"stats for {self.deployment.name} at {self.updated_at}"
 
 class  DeploymentAlert(models.Model):
     ALERT_TYPES=[
@@ -39,6 +41,7 @@ class  DeploymentAlert(models.Model):
         ("latency_spike", "Latency Spike"),
         ("model_down", "Model is not responding"),
         ("container_stopped", "Docker container stopped"),
+        ("errors_spike", "Errors Spike"),
     ]
  
     deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE, related_name="alerts")
@@ -59,7 +62,7 @@ class BaseDrift(models.Model):
     sample_count = models.IntegerField()
 
     def __str__(self):
-        return f"Drift for {self.model_version.name} detected at {self.detected_at}"
+        return f"Drift for {self.model_version} detected at {self.detected_at}"
     
 class DataDrift(models.Model):
     model_version = models.OneToOneField(ModelVersion, on_delete=models.CASCADE, related_name="data_drifts")
@@ -68,18 +71,19 @@ class DataDrift(models.Model):
     ks_statistic = models.FloatField()
     chi_square = models.FloatField()
     results = models.JSONField(default=dict)  # Store detailed results
+    sample_count = models.IntegerField(default=0)
     scanned_at = models.DateTimeField(default=timezone.now)
 
     class Meta: 
         ordering = ["-scanned_at"]
 
     def __str__(self):
-        return f"Data Drift for {self.model_version.name} detected at {self.scanned_at}"
+        return f"Data Drift for {self.model_version} detected at {self.scanned_at}"
 
 class Samples(models.Model):
     model_version =models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name="samples")
-    data = models.FileField(upload_to='samples/')
+    data = models.JSONField()
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"Sample for {self.model_version.name} at {self.created_at}"
+        return f"Sample for {self.model_version} at {self.created_at}"

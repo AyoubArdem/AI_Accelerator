@@ -6,17 +6,21 @@
 
 Before using the AIAC CLI, ensure you have:
 
-1. **Django server running** in the background
-2. **Virtual environment activated**
-3. **AIAC CLI installed** and accessible
+1. **AI Accelerator installed:**
+   ```bash
+   pip install ai-accelerator
+   ```
 
-### Starting the Server
+2. **Django server running** in the background (if running from source)
+3. **Virtual environment activated** (if running from source)
 
-First, start your Django development server:
+### Starting the Server (Development)
+
+If running from source, start your Django development server:
 
 ```bash
 # Activate virtual environment
-source env1/Scripts/activate  # On Windows: env1\Scripts\activate
+source env1/bin/activate  # On Windows: env1\Scripts\activate
 
 # Start Django server
 python manage.py runserver
@@ -26,23 +30,20 @@ python manage.py runserver
 
 ### Using the AIAC Console
 
-Once the server is running, open a **new terminal window** and start using the AIAC CLI:
+Once installed, use the AIAC CLI from anywhere:
 
 ```bash
-# Activate virtual environment in new terminal
-source env1/Scripts/activate  # On Windows: env1\Scripts\activate
-
 # Check CLI help
-python aiac_cli.py --help
+aiac --help
 
 # View available command groups
-python aiac_cli.py
+aiac
 
 # Get help for specific command group
-python aiac_cli.py deployment --help
-python aiac_cli.py monitoring --help
-python aiac_cli.py governance --help
-python aiac_cli.py auth --help
+aiac deployment --help
+aiac monitoring --help
+aiac governance --help
+aiac auth --help
 ```
 
 ### Complete Setup and Usage Workflow
@@ -56,30 +57,30 @@ python manage.py runserver
 source env1/Scripts/activate
 
 # 1. Register/Login first
-python aiac_cli.py auth register
+aiac auth register
 # or
-python aiac_cli.py auth login
+aiac auth login
 
 # 2. Create and manage projects
-python aiac_cli.py deployment create-project-deployment
-python aiac_cli.py deployment list-projects
+aiac deployment create-project-deployment
+aiac deployment list-projects
 
 # 3. Add model versions
-python aiac_cli.py deployment create-model-version
-python aiac_cli.py deployment list-model-versions
+aiac deployment create-model-version
+aiac deployment list-model-versions
 
 # 4. Deploy models
-python aiac_cli.py deployment deploy-model-version
-python aiac_cli.py deployment list-deployments
+aiac deployment deploy-model-version
+aiac deployment list-deployments
 
 # 5. Monitor deployments
-python aiac_cli.py monitoring deploy-stats
-python aiac_cli.py monitoring detect-drift
+aiac monitoring deploy-stats
+aiac monitoring detect-drift
 
 # 6. Set up governance
-python aiac_cli.py governance create-policy
-python aiac_cli.py governance apply-policy
-python aiac_cli.py governance view-violations
+aiac governance create-policy
+aiac governance apply-policy
+aiac governance view-violations
 ```
 
 ### CLI Configuration

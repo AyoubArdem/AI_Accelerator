@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-accelerator"
+version = "0.1.0"
+description = "AI Accelerator Platform - Deploy, monitor, and govern machine learning models in production"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Django",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "Django>=5.2.8",
+    "djangorestframework>=3.14.0",
+    "drf-spectacular>=0.26.5",
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "celery>=5.3.4",
+    "redis>=5.0.1",
+    "docker>=7.0.0",
+    "numpy>=1.24.3",
+    "scipy>=1.11.4",
+    "psycopg2-binary>=2.9.9",
+    "python-decouple>=3.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-django>=4.5.2",
+    "black>=23.12.1",
+    "flake8>=6.1.0",
+    "isort>=5.13.2",
+    "pre-commit>=3.6.0",
+]
+
+[project.scripts]
+aiac = "aiac.aiac_cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AyoubArdem/ai-accelerator"
+Repository = "https://github.com/AyoubArdem/ai-accelerator"
+Issues = "https://github.com/AyoubArdem/ai-accelerator/issues"
+Documentation = "https://ai-accelerator.readthedocs.io/"
+
+[tool.setuptools]
+packages = ["aiac", "AI_Accelerator"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md", "*.yml", "*.yaml"]

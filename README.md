@@ -3,33 +3,96 @@
 
 **AI Accelerator** is an end-to-end platform designed to **deploy, monitor, and govern machine learning models in production** in a secure, scalable, and auditable way.
 
+[![PyPI version](https://badge.fury.io/py/ai-accelerator.svg)](https://pypi.org/project/ai-accelerator/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+
 The project aims to be a **core MLOps foundation** for companies, ML teams, and developers who want to move from experimental notebooks to **real production-grade AI systems**.
+
+## 📦 Installation
+
+### From PyPI (Recommended)
+
+```bash
+pip install ai-accelerator
+```
+
+### From Source
+
+```bash
+git clone https://github.com/AyoubArdem/ai-accelerator.git
+cd ai-accelerator
+pip install -e .
+```
+
+### Development Setup
+
+For contributors and development:
+
+```bash
+git clone https://github.com/AyoubArdem/ai-accelerator.git
+cd ai-accelerator
+
+# Create virtual environment
+python -m venv env1
+source env1/bin/activate  # On Windows: env1\Scripts\activate
+
+# Install in development mode
+pip install -e .
+pip install -e ".[dev]"  # Development dependencies
+
+# Run migrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+```
+
+## 🚀 Quick Start
+
+### 1. Start the Platform
+
+```bash
+# Start Django development server
+python manage.py runserver
+
+# Server will be available at: http://127.0.0.1:8000
+```
+
+### 2. Access API Documentation
+
+Visit the interactive API documentation:
+- **Swagger UI**: http://127.0.0.1:8000/api/schema/swagger-ui/
+- **ReDoc**: http://127.0.0.1:8000/api/schema/redoc/
+
+### 3. Use the CLI
+
+```bash
+# Check CLI help
+aiac --help
+
+# Authenticate
+aiac auth login
+
+# Create and deploy a model
+aiac deployment create-project-deployment
+aiac deployment create-model-version
+aiac deployment deploy-model-version
+```
 
 ## 📚 Documentation & Resources
 
 | Document | Description |
 |----------|-------------|
 | [**README.md**](README.md) | Project overview, setup, and usage guide |
-| [**LAUNCH_CHECKLIST.md**](LAUNCH_CHECKLIST.md) | Quick start guide for community building |
-| [**LINKEDIN_GUIDE.md**](LINKEDIN_GUIDE.md) | Complete guide for LinkedIn promotion |
-| [**LINKEDIN_POST.md**](LINKEDIN_POST.md) | Ready-to-use LinkedIn post templates |
-| [**GITHUB_POPULARITY.md**](GITHUB_POPULARITY.md) | Comprehensive guide for GitHub growth |
-| [**COMMUNITY.md**](COMMUNITY.md) | Comprehensive community building strategies |
 | [**CONSOLE.md**](CONSOLE.md) | Detailed AIAC CLI usage instructions |
 | [**CONTRIBUTING.md**](CONTRIBUTING.md) | Guidelines for contributing to the project |
 | [**CHANGELOG.md**](CHANGELOG.md) | Version history and release notes |
 | [**SECURITY.md**](SECURITY.md) | Security policy and vulnerability reporting |
 | [**CODE_OF_CONDUCT.md**](CODE_OF_CONDUCT.md) | Community standards and behavior guidelines |
-| [**LICENSE**](LICENSE) | MIT License terms |
+| [**LICENSE**](LICENSE) | Apache 2.0 License terms |
 
-### 🚀 Quick Start
-- **Setup**: See [Requirements & Dependencies](#-requirements--dependencies) section
-- **API Docs**: Visit `http://127.0.0.1:8000/api/schema/swagger-ui/` after setup
-- **CLI**: See [CONSOLE.md](CONSOLE.md) for command-line usage
 
----
-
-## 🎯 Project Vision & Goals
 
 ## 🎯 Project Vision & Goals
 
@@ -60,8 +123,8 @@ Modern AI teams face critical challenges:
                 └──────┬──────┘
                        │
                 ┌──────▼──────┐
-                │   Django     │
-                │   Backend    │
+                │   Django    │
+                │   Backend   │
                 └──────┬──────┘
         ┌──────────────┼────────────────┐
         │              │                │
@@ -134,9 +197,9 @@ Responsible for **policies, compliance, and control**.
 # metadata.yaml
 * version: 1.0
 
-# =========================
-# Role-Based Access Control
-# =========================
+### =========================
+## Role-Based Access Control
+### =========================
 > role_permissions:
   * admin:
     - deployment:*
@@ -152,18 +215,18 @@ Responsible for **policies, compliance, and control**.
   * auditor:
     - audit:read
 
-# =========================
-# Deployment Runtime Config
-# =========================
+### =========================
+## Deployment Runtime Config
+### =========================
 > deployment:
   * id : deployment.id,
   * name : deployment.name,
   * port : deployment.port,
   * status : deployment.status,
 
-# =========================
-# Drift Monitoring Config
-# =========================
+### =========================
+## Drift Monitoring Config
+### =========================
 > drift_monitoring:
   * enabled: true
 
@@ -336,21 +399,59 @@ Commands use **Rich** library for beautiful terminal output:
 
 ---
 
-## �🔐 Security by Design
+## 🔗 API Endpoints
 
-Security is a **core principle**, not an afterthought:
+The platform provides REST APIs for all functionality. Key endpoints include:
 
-* JWT-based authentication
-* Role-Based Access Control (RBAC)
-* Scoped permissions
-* API keys for inference
-* Service tokens for monitoring agents
-* Immutable audit logs
-* Clear separation of roles:
+### Authentication
+- `POST /api/auth/login/` - User login
+- `POST /api/auth/register/` - User registration
+- `POST /api/auth/logout/` - User logout
 
-  * Admin
-  * Engineer
-  * Auditor
+### Deployment Management
+- `GET /api/deployments/projects/` - List projects
+- `POST /api/deployments/projects/` - Create project
+- `GET /api/deployments/versions/` - List model versions
+- `POST /api/deployments/versions/` - Create model version
+- `POST /api/deployments/deploy/` - Deploy model
+- `GET /api/deployments/` - List deployments
+
+### Monitoring
+- `GET /api/monitoring/stats/` - Deployment statistics
+- `POST /api/monitoring/drift/` - Check data drift
+- `GET /api/monitoring/alerts/` - List alerts
+
+### Governance
+- `GET /api/governance/policies/` - List policies
+- `POST /api/governance/policies/` - Create policy
+- `GET /api/governance/violations/` - List violations
+
+## 🔐 Authentication & Security
+
+### JWT Token Authentication
+
+The platform uses JWT (JSON Web Tokens) for API authentication:
+
+1. **Login** to get access and refresh tokens
+2. **Include token** in Authorization header: `Bearer <access_token>`
+3. **Refresh tokens** when they expire using the refresh endpoint
+
+### Role-Based Access Control
+
+Three user roles with different permissions:
+
+- **Admin**: Full access to all features
+- **Engineer**: Deployment and monitoring access
+- **Auditor**: Read-only access to audit logs and compliance data
+
+### Security Features
+
+- ✅ JWT-based authentication
+- ✅ Role-based permissions
+- ✅ API key support for model inference
+- ✅ Service tokens for monitoring agents
+- ✅ Immutable audit logging
+- ✅ Input validation and sanitization
 
 ---
 
@@ -371,18 +472,65 @@ Security is a **core principle**, not an afterthought:
 
 ---
 
-## 🛠️ Tech Stack
+## � Docker Deployment
 
-* Python
-* Django & Django REST Framework
-* FastAPI
-* Docker
-* Celery & Redis
-* PostgreSQL
-* Typer & Rich
-* YAML-based governance policies
+The platform supports containerized deployment for production environments.
 
----
+### Quick Start with Docker Compose
+
+```bash
+# Clone the repository
+git clone https://github.com/AyoubArdem/ai-accelerator.git
+cd ai-accelerator
+
+# Start all services
+docker-compose up -d
+
+# Services will be available at:
+# - Django API: http://localhost:8000
+# - PostgreSQL: localhost:5432
+# - Redis: localhost:6379
+```
+
+### Docker Services
+
+- **web**: Django application server
+- **db**: PostgreSQL database
+- **redis**: Redis cache and message broker
+- **celery**: Asynchronous task worker
+
+### Environment Configuration
+
+Create a `.env` file for configuration:
+
+```env
+# Database
+DATABASE_URL=postgresql://user:password@db:5432/ai_accelerator
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# Django
+SECRET_KEY=your-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# JWT
+JWT_SECRET_KEY=your-jwt-secret
+```
+
+### Building Custom Images
+
+```bash
+# Build the application image
+docker build -t ai-accelerator:latest .
+
+# Run with custom configuration
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql://... \
+  -e REDIS_URL=redis://... \
+  ai-accelerator:latest
+```
 ## 📦 Requirements & Dependencies
 
 ### System Requirements
@@ -394,83 +542,50 @@ Security is a **core principle**, not an afterthought:
 
 ### Core Dependencies
 
-Install the main requirements:
+When you install `ai-accelerator`, the following key dependencies are automatically included:
 
-```bash
-pip install -r requirements.txt
-```
+**Main requirements:**
+- `Django>=5.2.8` - Web framework
+- `djangorestframework>=3.14.0` - API framework
+- `djangorestframework-simplejwt>=5.3.0` - JWT authentication
+- `drf-spectacular>=0.26.5` - API documentation
+- `django-cors-headers>=4.3.1` - CORS handling
+- `python-decouple>=3.8` - Environment variable management
+- `psycopg2-binary>=2.9.9` - PostgreSQL adapter
+- `celery>=5.3.4` - Asynchronous task queue
+- `django-redis>=5.4.0` - Redis cache backend
+- `redis>=5.0.1` - Redis client
+- `PyJWT>=2.8.0` - JWT token handling
 
-**Main requirements include:**
-- `Django` - Web framework
-- `djangorestframework` - API framework
-- `djangorestframework-simplejwt` - JWT authentication
-- `drf-spectacular` - API documentation
-- `django-cors-headers` - CORS handling
-- `python-decouple` - Environment variable management
-- `psycopg2-binary` - PostgreSQL adapter
-- `celery` - Asynchronous task queue
-- `django-redis` - Redis cache backend
-- `PyJWT` - JWT token handling
+**CLI requirements:**
+- `typer>=0.9.0` - Command-line interface framework
+- `rich>=13.7.0` - Beautiful terminal output
+- `docker>=7.0.0` - Container management
+- `requests>=2.31.0` - HTTP client
 
-### AIAC CLI Dependencies
-
-For the command-line interface:
-
-```bash
-pip install -r aiac/requirments.txt
-```
-
-**CLI requirements include:**
-- `typer` - Command-line interface framework
-- `rich` - Beautiful terminal output
-- `requests` - HTTP client for API calls
-- `click` - Command-line utilities
-
-### Model Deployment Dependencies
-
-For model serving and inference:
-
-```bash
-pip install -r deployment/requirements.txt
-```
-
-**Deployment requirements include:**
-- `fastapi` - High-performance API framework
-- `uvicorn` - ASGI server
-- `numpy`, `scipy`, `pandas` - Data processing
-- `scikit-learn`, `joblib` - Machine learning
-- `torch`, `tensorflow` - Deep learning frameworks
-- `onnxruntime` - Model inference optimization
-
-### Monitoring Dependencies
-
-For system monitoring and drift detection:
-
-```bash
-pip install -r monitoring/requirements.txt
-```
-
-**Monitoring requirements include:**
-- `requests` - API communication
-- `psutil` - System resource monitoring
-- `docker` - Container management
+**AI/ML requirements:**
+- `numpy>=1.24.3` - Numerical computing
+- `scipy>=1.11.4` - Scientific computing
+- `tensorflow>=2.15.0` - Deep learning framework
 
 ### Development Setup
 
-1. **Create virtual environment:**
+For contributors and advanced users who want to run from source:
+
+1. **Clone and setup:**
    ```bash
+   git clone https://github.com/AyoubArdem/ai-accelerator.git
+   cd ai-accelerator
    python -m venv env1
-   source env1/Scripts/activate  # On Windows
-   # or
-   source env1/bin/activate     # On Linux/Mac
+   source env1/bin/activate  # On Windows: env1\Scripts\activate
    ```
 
 2. **Install all dependencies:**
    ```bash
    pip install -r requirements.txt
-   pip install -r aiac/requirments.txt
    pip install -r deployment/requirements.txt
    pip install -r monitoring/requirements.txt
+   pip install -r governance/requirements.txt
    ```
 
 3. **Database setup:**
@@ -488,15 +603,21 @@ pip install -r monitoring/requirements.txt
    python manage.py createsuperuser
    ```
 
-### Optional Dependencies
+### Optional Development Dependencies
 
-- **Development tools:**
-  - `black` - Code formatting
-  - `flake8` - Linting
-  - `pytest` - Testing framework
+Install additional development tools:
 
-- **Documentation:**
-  - `sphinx` - Documentation generation
+```bash
+pip install -e ".[dev]"
+```
+
+This includes:
+- `pytest>=7.4.3` - Testing framework
+- `pytest-django>=4.5.2` - Django testing utilities
+- `black>=23.12.1` - Code formatting
+- `flake8>=6.1.0` - Linting
+- `isort>=5.13.2` - Import sorting
+- `pre-commit>=3.6.0` - Git hooks
 
 ---
 ## � API Documentation
@@ -537,49 +658,189 @@ To test protected endpoints, you'll need to:
 
 ---
 
-## �🚧 Project Status
+## 🚀 Project Status
 
-> 🚀 Actively under development
-> Core architecture is stable and production-oriented
+**AI Accelerator v0.1.0** is now available on PyPI! 🎉
+
+### Current Status
+- ✅ **Core functionality** implemented and tested
+- ✅ **PyPI package** published and installable
+- ✅ **CLI tool** fully functional
+- ✅ **API documentation** complete
+- ✅ **Docker support** for containerized deployment
+
+### Roadmap (Future Releases)
+
+#### v0.2.0 - Enhanced Monitoring
+- [ ] Advanced drift visualization
+- [ ] Custom monitoring metrics
+- [ ] Alert notification system (email/webhooks)
+- [ ] Performance benchmarking tools
+
+#### v0.3.0 - Web Dashboard
+- [ ] React-based admin interface
+- [ ] Real-time monitoring dashboard
+- [ ] Model performance analytics
+- [ ] Governance policy editor
+
+#### v0.4.0 - Enterprise Features
+- [ ] Multi-tenant architecture
+- [ ] Advanced RBAC with custom roles
+- [ ] Audit log export and compliance reports
+- [ ] Integration with cloud platforms (AWS, GCP, Azure)
+
+#### v0.5.0 - Automation & Pipelines
+- [ ] Automated model retraining
+- [ ] CI/CD pipeline integration
+- [ ] A/B testing framework
+- [ ] Model versioning with Git integration
+
+### Stability
+- **Core APIs**: Stable for production use
+- **CLI Interface**: Stable and backward compatible
+- **Database Schema**: Stable with migration support
+- **Docker Images**: Production-ready
+
+### Support
+- 📧 **Issues**: [GitHub Issues](https://github.com/AyoubArdem/ai-accelerator/issues)
+- 📖 **Documentation**: [GitHub Wiki](https://github.com/AyoubArdem/ai-accelerator/wiki)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/AyoubArdem/ai-accelerator/discussions)
 
 ---
 
-## 🤝 Call for Contributors
+## 🤝 Contributing
 
-**AI Accelerator is open for collaboration and contributions.**
+We welcome contributions from the community! Here's how to get started:
 
-We welcome:
+### Development Setup
 
-* Machine Learning Engineers
-* Backend Developers
-* DevOps Engineers
-* Security & Governance enthusiasts
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/ai-accelerator.git
+cd ai-accelerator
 
-**Future roadmap ideas:**
+# Create virtual environment
+python -m venv env1
+source env1/bin/activate  # On Windows: env1\Scripts\activate
 
-* Web-based dashboard
-* Automated retraining pipelines
-* Advanced drift visualization
-* Kubernetes & cloud-native support
-* Multi-tenant SaaS mode
+# Install in development mode with dev dependencies
+pip install -e ".[dev]"
 
-📌 Feel free to:
+# Run database migrations
+python manage.py migrate
 
-* Fork the repository
-* Propose features
-* Open issues
-* Submit pull requests
+# Create a superuser
+python manage.py createsuperuser
+
+# Run tests
+pytest
+
+# Start development server
+python manage.py runserver
+```
+
+### Code Quality
+
+We use several tools to maintain code quality:
+
+```bash
+# Format code
+black .
+
+# Sort imports
+isort .
+
+# Lint code
+flake8 .
+
+# Run all checks
+pre-commit run --all-files
+```
+
+### Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=aiac --cov=AI_Accelerator
+
+# Run specific test file
+pytest tests/test_deployment.py
+```
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Ensure all tests pass: `pytest`
+5. Format your code: `black . && isort .`
+6. Commit your changes: `git commit -m 'Add amazing feature'`
+7. Push to the branch: `git push origin feature/amazing-feature`
+8. Open a Pull Request
+
+### Areas for Contribution
+
+- 🐛 **Bug fixes** - Help us squash bugs
+- ✨ **New features** - Add monitoring metrics, governance policies, etc.
+- 📚 **Documentation** - Improve docs, add tutorials, examples
+- 🧪 **Testing** - Add more comprehensive tests
+- 🎨 **UI/UX** - Web dashboard, improved CLI output
+- 🔧 **DevOps** - Kubernetes support, CI/CD improvements
 
 
 
 
 
-**AI Accelerator** is more than a project —
-it is a **production-grade AI platform blueprint**.
+## 🙏 Acknowledgments
 
-> Our goal is to make AI deployment, monitoring, and governance
-> structured, secure, and scalable —
-> from experimentation to real-world impact.
+AI Accelerator builds upon the excellent work of the open-source community:
 
-🚀 **Let’s build the future of AI infrastructure together.**
+- **Django** & **Django REST Framework** - Web framework foundation
+- **Typer** & **Rich** - CLI framework and beautiful output
+- **Celery** - Asynchronous task processing
+- **Docker** - Containerization platform
+- **TensorFlow** - Machine learning framework
+- **PostgreSQL** & **Redis** - Data storage and caching
+
+Special thanks to all contributors and the MLOps community for inspiration and feedback.
+
+## 📄 License
+
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+
+```
+Copyright 2026 Ayoub Ardem
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+---
+
+## 📞 Contact & Support
+
+- **Author**: Ayoub Ardem
+- **Email**: [ayoub.ardem@example.com]
+- **GitHub**: [@AyoubArdem](https://github.com/AyoubArdem)
+- **LinkedIn**: [Your LinkedIn Profile]
+
+---
+
+**AI Accelerator** is more than a project — it's a **production-grade AI platform blueprint**.
+
+> Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable — from experimentation to real-world impact.
+
+🚀 **Let's build the future of AI infrastructure together!**
 

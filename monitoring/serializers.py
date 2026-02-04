@@ -79,6 +79,7 @@ class DataDriftSerializer(serializers.ModelSerializer):
             "ks_statistic",
             "chi_square",
             "results",
+            "sample_count",
             "scanned_at",
         ]
         read_only_fields = ["id", "scanned_at"]

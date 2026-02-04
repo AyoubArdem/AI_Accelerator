@@ -24,5 +24,8 @@ app.add_typer(api_app_deployment, name="deployment", help="Deployment management
 app.add_typer(monitoring_api_app, name="monitoring", help="Monitoring and analytics commands")
 app.add_typer(governance_api_app, name="governance", help="Governance and policy commands")
 
-if __name__ == "__main__":
+def main():
     app()
+
+if __name__ == "__main__":
+    main()

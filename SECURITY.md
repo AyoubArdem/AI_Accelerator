@@ -9,8 +9,9 @@ AI Accelerator takes security seriously. As an AI/ML platform handling sensitive
 If you discover a security vulnerability, please report it responsibly:
 
 ### 📧 Contact Information
-- **Email**: security@ai-accelerator.dev (placeholder - update with actual email)
-- **Response Time**: We aim to respond within 48 hours
+- **GitHub Security Advisories**: [Create a Security Advisory](https://github.com/your-repo/ai-accelerator/security/advisories/new)
+- **GitHub Discussions**: [Security Discussions](https://github.com/your-repo/ai-accelerator/discussions/categories/security)
+- **Response Time**: We aim to respond within 72 hours
 - **Disclosure**: We follow responsible disclosure practices
 
 ### 📝 What to Include
@@ -97,7 +98,8 @@ When reporting a vulnerability, please provide:
 ## 📞 Contact
 
 For security-related questions or concerns:
-- **General Security Questions**: security@ai-accelerator.dev
+- **GitHub Security Advisories**: [Report Vulnerabilities](https://github.com/your-repo/ai-accelerator/security/advisories/new)
+- **GitHub Discussions**: [Security Discussions](https://github.com/your-repo/ai-accelerator/discussions/categories/security)
 - **Bug Reports**: Use GitHub Issues with "security" label
 - **Documentation**: This security policy
 

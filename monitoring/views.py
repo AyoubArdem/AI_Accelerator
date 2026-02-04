@@ -7,13 +7,15 @@ from rest_framework.response import Response
 from .models import (
     DataDrift,
     DeploymentStats,
-    DeploymentAlert
+    DeploymentAlert,
+    Samples
 )
 from .serializers import (
     DeploymentMonitoringRecordSerializer,
     DeploymentStatsSerializer,
     DeploymentAlertSerializer,
-    DataDriftSerializer
+    DataDriftSerializer,
+    SamplesSerializer
       )
 from monitoring.models import Samples
 
@@ -48,7 +50,7 @@ class ReceiveMetricsAPIView(APIView):
         
         try:
             deployment = Deployment.objects.get(id=deployment_id)
-        except deployment.DoesNotExist:
+        except Deployment.DoesNotExist:
             return Response(
                 {"error": "Invalid deployment_id"},
                 status=status.HTTP_404_NOT_FOUND
@@ -95,7 +97,7 @@ class ReceiveMetricsAPIView(APIView):
         if stats.latency_ms > 1000:
             DeploymentAlert.objects.create(
                 deployment=deployment,
-                alert_type="high_latency",
+                alert_type="latency_spike",
                 message=f"Latency reached {stats.latency_ms} ms"
             )
 
@@ -111,7 +113,7 @@ class ReceiveMetricsAPIView(APIView):
 class ResolveAlertAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self,  alert_id):
+    def post(self, request, alert_id):
         try:
             alert = DeploymentAlert.objects.get(id=alert_id)
         except DeploymentAlert.DoesNotExist:
@@ -124,7 +126,7 @@ class ResolveAlertAPIView(APIView):
 
 class GetSamplesAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = DeploymentAlertSerializer
+    serializer_class = SamplesSerializer
 
     def post(self, request, model_version_id):
         try:
@@ -146,4 +148,4 @@ class DataDriftAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         model_version_id = self.kwargs["model_version_id"]
-        return DataDrift.objects.filter(model_version=model_version_id).order_by("-detected_at")
+        return DataDrift.objects.filter(model_version=model_version_id).order_by("-scanned_at")

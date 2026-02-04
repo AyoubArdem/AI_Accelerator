@@ -8,6 +8,4 @@ class IsPolicyAdmin(BasePermission):
         return (request.user and 
                 request.user.is_authenticated and 
                 hasattr(request.user, 'role') and 
-                request.user.role == 'policy_admin' and 
-                request.user.is_active and 
-                request.method in ['GET']) 
+                request.user.role == 'policy_admin') 
