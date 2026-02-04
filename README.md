@@ -834,7 +834,7 @@ limitations under the License.
 - **Author**: Ayoub Ardem
 - **Email**: [ayoub.ardem@example.com]
 - **GitHub**: [@AyoubArdem](https://github.com/AyoubArdem)
-- **LinkedIn**: [Your LinkedIn Profile]
+- **LinkedIn**: [https://www.linkedin.com/in/ayoub-student-08832b2b3]
 
 ---
 
