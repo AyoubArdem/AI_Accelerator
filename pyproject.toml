@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-accelerator"
-version = "0.1.0"
-description = "AI Accelerator Platform - Deploy, monitor, and govern machine learning models in production"
-readme = "README.md"
+version = "0.1.1"
+description = "AI Accelerator: A production-ready MLOps platform to deploy, monitor, and govern machine learning models with security, scalability, and auditability."
+readme = "CONSOLE.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.8"
 classifiers = [
@@ -52,10 +52,9 @@ dev = [
 aiac = "aiac.aiac_cli:main"
 
 [project.urls]
-Homepage = "https://github.com/AyoubArdem/ai-accelerator"
-Repository = "https://github.com/AyoubArdem/ai-accelerator"
-Issues = "https://github.com/AyoubArdem/ai-accelerator/issues"
-Documentation = "https://ai-accelerator.readthedocs.io/"
+Homepage = "https://github.com/AyoubArdem"
+Repository = "https://github.com/AyoubArdem/AI_Accelerator"
+Documentation = "https://github.com/AyoubArdem/AI_Accelerator/blob/main/README.md"
 
 [tool.setuptools]
 packages = ["aiac", "AI_Accelerator"]

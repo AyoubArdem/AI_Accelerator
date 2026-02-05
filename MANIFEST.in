@@ -1,3 +1,4 @@
+include CONSOLE.md
 include README.md
 include LICENSE
 include CHANGELOG.md
