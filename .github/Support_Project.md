@@ -1,4 +1,4 @@
-## 💙 Sponsor Pitch — AI Accelerator
+## 💙 Supporting — AI Accelerator
 
 **AI Accelerator** is an open-source platform designed to bridge the gap between **machine learning experimentation and real-world production**.
 
