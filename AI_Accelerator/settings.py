@@ -48,10 +48,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
+    "django_extensions",
+
 ]
 
 # Custom user model
 AUTH_USER_MODEL = 'users.User'
+
+DEFAULT_FROM_EMAIL = 'AI Accelerator <noreply@aiaccelerator.com>'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -169,8 +173,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 from decouple import config
-
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_HOST = config('EMAIL_HOST')
 EMAIL_PORT = config('EMAIL_PORT', cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)

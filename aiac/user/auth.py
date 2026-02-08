@@ -1,23 +1,25 @@
 import typer , requests
 from aiac.config import get_config , save_config
 
-auth_app = typer.Typer(help="user authentication commands")
+auth_app = typer.Typer()
+
 
 @auth_app.command("register")
-def register(username: str = typer.Option(..., prompt=True, help="Username for registration"),
-             password: str = typer.Option(..., prompt=True, hide_input=True, help="Password for registration"),
-             email: str = typer.Option(..., prompt=True, help="Email address for registration"),
-             role: str = typer.Option(..., prompt=True, help="Role of the user (client or admin)")):
-
+def register(
+    email: str = typer.Option(..., prompt=True, help="Email address for registration"),
+    username: str = typer.Option(..., prompt=True, help="Username for registration"),
+    password: str = typer.Option(..., prompt=True, hide_input=True, help="Password for registration"),
+    role: str = typer.Option(..., prompt=True, help="Role of the user (client or admin)")
+):
     "Register a new user"
     config = get_config()
-    url = f"{config.api_base_url}/register/"
-    data = {"username": username, "password": password, "email": email, "role": role}
+    url = f"{config.api_base_url}/api/users/register/"
+    data = {"email": email, "username": username, "password": password, "role": role}
     response = requests.post(url, json=data)
     if response.status_code == 201:
-        typer.echo("Registration successful! Please check your email to activate your account.")
+        typer.echo("✅ Registration successful! Please check your email to activate your account.")
     else:
-        typer.echo(f"Registration failed: {response.text}")
+        typer.echo(f"❌ Registration failed ({response.status_code}): {response.text}")
 
 @auth_app.command("login")
 def login(email: str = typer.Option(..., prompt=True, help="Email address for login"),
@@ -25,7 +27,7 @@ def login(email: str = typer.Option(..., prompt=True, help="Email address for lo
 
     "Login a user"
     config = get_config()
-    url = f"{config.api_base_url}/login/"
+    url = f"{config.api_base_url}/api/users/login/"
     data = {"email": email, "password": password}
     response = requests.post(url, json=data)
 
@@ -42,7 +44,7 @@ def logout(refresh_token: str = typer.Option(..., prompt=True, hide_input=True, 
 
     "Logout a user"
     config = get_config()
-    url = f"{config.api_base_url}/logout/"
+    url = f"{config.api_base_url}/api/users/logout/"
     data = {"refresh": refresh_token}
     response = requests.post(url, json=data)
     if response.status_code == 200:

@@ -2,9 +2,9 @@ from pathlib import Path
 import json
 
 def get_config():
-    api_base_url = "http://localhost:8000/api"
-    
+    api_base_url = "http://localhost:8000"
     return type("Config", (object,), {"api_base_url": api_base_url})()
+
 
 def save_config(data: dict, api_base_url: str):
     folder = Path.home() / ".aiac"
