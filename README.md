@@ -4,11 +4,7 @@
 ## Project Logo
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png" />
-    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png" />
-    <img src="assets/logo.png" alt="AI Accelerator Logo" width="220" />
-  </picture>
+  <img src="assets/logo.png" alt="AI Accelerator Logo" width="220" />
 </p>
 
 **AI Accelerator** is an end-to-end platform designed to **deploy, monitor, and govern machine learning models in production** in a secure, scalable, and auditable way.
