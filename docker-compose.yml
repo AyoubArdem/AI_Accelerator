@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   web:
     build: .
@@ -5,14 +7,16 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-      - /app/env1
     environment:
       - DEBUG=True
-      - DATABASE_URL=sqlite:///db.sqlite3
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ai_user:ai_password@postgres:5432/ai_accelerator
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
     depends_on:
       - redis
-    command: python manage.py runserver 0.0.0.0:8000
+      - postgres
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     networks:
       - ai-accelerator
 
@@ -45,9 +49,13 @@ services:
     volumes:
       - .:/app
     environment:
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ai_user:ai_password@postgres:5432/ai_accelerator
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CACHE_URL=redis://redis:6379/1
     depends_on:
       - redis
+      - postgres
     networks:
       - ai-accelerator
 
