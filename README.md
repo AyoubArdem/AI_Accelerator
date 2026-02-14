@@ -3,11 +3,6 @@
 
 ## Project Logo
 
-Place your logo files in `assets/`:
-- `assets/logo-light.png` for light theme
-- `assets/logo-dark.png` for dark theme
-- optional fallback: `assets/logo.png`
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png" />
