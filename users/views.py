@@ -4,10 +4,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from .utils import send_activation_email
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, UserSerializer
 from .tokens import account_activation_token
 
 User = get_user_model()
@@ -21,11 +22,11 @@ class RegisterUserView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            send_activation_email(user, request)
-            return Response(
-                {"message": "Account created successfully. Please check your email to activate your account."},
-                status=status.HTTP_201_CREATED
-            )
+            activation_link = send_activation_email(user, request)
+            payload = {"message": "Account created successfully. Please check your email to activate your account."}
+            if settings.DEBUG:
+                payload["activation_link"] = activation_link
+            return Response(payload, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -75,3 +76,11 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except TokenError:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)

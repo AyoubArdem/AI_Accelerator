@@ -42,6 +42,7 @@ class Deployment(models.Model):
     deployed_at = models.DateTimeField(auto_now_add=True)
     port = models.PositiveIntegerField(default=8000)
     endpoint_url = models.URLField()
+    start_worker = models.BooleanField(default=False)
     status = models.CharField(max_length=50, choices=StatusChoices.choices, default=StatusChoices.PENDING)
     logs = models.TextField(blank=True, null=True)
 

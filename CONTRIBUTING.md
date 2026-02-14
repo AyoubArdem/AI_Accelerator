@@ -1,483 +1,146 @@
-# 🤝 Contributing to AI Accelerator
+# Contributing to AI Accelerator
 
-Thank you for your interest in contributing to **AI Accelerator**! We welcome contributions from the community to help make this platform even better. This document provides guidelines and information for contributors.
+Thanks for contributing to AI Accelerator. This guide explains how to propose changes, set up your environment, and submit high-quality pull requests.
 
-## 📋 Table of Contents
+## Code of Conduct
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [How to Contribute](#how-to-contribute)
-- [Development Workflow](#development-workflow)
-- [Coding Standards](#coding-standards)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [Reporting Issues](#reporting-issues)
-- [Pull Request Process](#pull-request-process)
-- [Community](#community)
+By participating, you agree to follow the project's code of conduct in `CODE_OF_CONDUCT.md`.
 
-## 🤝 Code of Conduct
+## Ways to Contribute
 
-This project follows a code of conduct to ensure a welcoming environment for all contributors. By participating, you agree to:
+- Fix bugs
+- Add features
+- Improve documentation
+- Add or improve tests
+- Improve developer tooling and automation
 
-- Be respectful and inclusive
-- Focus on constructive feedback
-- Accept responsibility for mistakes
-- Show empathy towards other contributors
-- Help create a positive community
-
-## 🚀 Getting Started
+## Development Setup
 
 ### Prerequisites
 
-Before you begin, ensure you have:
-
-- Python 3.8 or higher
+- Python 3.8+
 - Git
-- Docker (for deployment features)
-- PostgreSQL or SQLite (for database)
-- Redis (for Celery and caching)
+- Redis (recommended for async tasks)
+- Docker (recommended for deployment/runtime workflows)
 
-### Quick Setup
-
-1. **Fork the repository** on GitHub
-2. **Clone your fork:**
-   ```bash
-   git clone https://github.com/your-username/ai-accelerator.git
-   cd ai-accelerator
-   ```
-
-3. **Set up development environment:**
-   ```bash
-   # Create virtual environment
-   python -m venv env1
-   source env1/Scripts/activate  # Windows
-   # or
-   source env1/bin/activate     # Linux/Mac
-
-   # Install dependencies
-   pip install -r requirements.txt
-   pip install -r aiac/requirments.txt
-   pip install -r deployment/requirements.txt
-   pip install -r monitoring/requirements.txt
-
-   # Install development dependencies
-   pip install black flake8 pytest pytest-django pytest-cov
-   ```
-
-4. **Set up the database:**
-   ```bash
-   python manage.py migrate
-   python manage.py createsuperuser
-   ```
-
-5. **Run the development server:**
-   ```bash
-   python manage.py runserver
-   ```
-
-6. **Verify installation:**
-   - Visit `http://127.0.0.1:8000/api/schema/swagger-ui/` for API docs
-   - Check that the server starts without errors
-
-## 🛠️ Development Setup
-
-### Environment Configuration
-
-Create a `.env` file in the project root:
-
-```env
-DEBUG=True
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=sqlite:///db.sqlite3  # or PostgreSQL URL
-REDIS_URL=redis://localhost:6379
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
-
-### IDE Setup
-
-We recommend using VS Code with these extensions:
-- Python
-- Pylance
-- Django
-- Docker
-- GitLens
-
-### Pre-commit Hooks
-
-Set up pre-commit hooks to ensure code quality:
+### Local Setup
 
 ```bash
-pip install pre-commit
-pre-commit install
-```
-
-## 💡 How to Contribute
-
-### Types of Contributions
-
-We welcome various types of contributions:
-
-- 🐛 **Bug fixes** - Fix existing issues
-- ✨ **Features** - Add new functionality
-- 📚 **Documentation** - Improve docs, tutorials, guides
-- 🧪 **Tests** - Add or improve test coverage
-- 🎨 **UI/UX** - Improve user interface and experience
-- 🔧 **Tools** - Development tools, scripts, automation
-
-### Finding Issues to Work On
-
-1. Check the [Issues](https://github.com/your-repo/ai-accelerator/issues) page
-2. Look for issues labeled `good first issue` or `help wanted`
-3. Comment on the issue to indicate you're working on it
-4. Wait for maintainer approval before starting
-
-### Areas Needing Help
-
-- **Machine Learning Integration**: Model serving, drift detection algorithms
-- **Frontend Development**: Web dashboard, admin interface
-- **DevOps**: Docker, Kubernetes, CI/CD pipelines
-- **Documentation**: Tutorials, API guides, deployment docs
-- **Testing**: Unit tests, integration tests, end-to-end tests
-
-## 🔄 Development Workflow
-
-### 1. Choose an Issue
-
-- Select an issue from the GitHub Issues page
-- Comment that you're working on it
-- Wait for maintainer assignment
-
-### 2. Create a Branch
-
-```bash
-# Create and switch to a new branch
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/issue-number-description
-```
-
-### 3. Make Changes
-
-- Write clean, well-documented code
-- Follow the coding standards below
-- Add tests for new functionality
-- Update documentation as needed
-
-### 4. Test Your Changes
-
-```bash
-# Run tests
-pytest
-
-# Run specific test file
-pytest aiac/tests/test_something.py
-
-# Run with coverage
-pytest --cov=.
-
-# Run Django tests
-python manage.py test
-```
-
-### 5. Commit Your Changes
-
-```bash
-# Stage your changes
-git add .
-
-# Commit with descriptive message
-git commit -m "feat: add new feature description
-
-- What was changed
-- Why it was changed
-- Any breaking changes
-"
-
-# Push to your fork
-git push origin feature/your-feature-name
-```
-
-### 6. Create a Pull Request
-
-- Go to the original repository on GitHub
-- Click "New Pull Request"
-- Select your branch
-- Fill out the PR template
-- Wait for review
-
-## 📝 Coding Standards
-
-### Python Style
-
-We follow PEP 8 with some modifications:
-
-- **Line length**: 88 characters (Black default)
-- **Imports**: Use absolute imports
-- **Docstrings**: Use Google-style docstrings
-- **Type hints**: Add type hints where possible
-
-### Code Formatting
-
-We use Black for automatic code formatting:
-
-```bash
-# Format code
-black .
-
-# Check formatting
-black --check .
-```
-
-### Linting
-
-Use flake8 for linting:
-
-```bash
-# Run linter
-flake8 .
-
-# With specific config
-flake8 --max-line-length=88 --extend-ignore=E203,W503
-```
-
-### Naming Conventions
-
-- **Classes**: `PascalCase`
-- **Functions/Methods**: `snake_case`
-- **Constants**: `UPPER_SNAKE_CASE`
-- **Variables**: `snake_case`
-- **Files**: `snake_case.py`
-
-### Django-Specific Guidelines
-
-- **Models**: Use descriptive field names
-- **Views**: Use class-based views when possible
-- **URLs**: Use descriptive names for URL patterns
-- **Templates**: Follow Django template best practices
-- **Migrations**: Create meaningful migration files
-
-## 🧪 Testing
-
-### Test Structure
-
-```
-tests/
-├── __init__.py
-├── test_models.py
-├── test_views.py
-├── test_serializers.py
-├── test_cli.py
-├── integration/
-│   ├── test_deployment_flow.py
-│   └── test_monitoring_flow.py
-└── fixtures/
-    ├── sample_data.json
-    └── test_models.json
-```
-
-### Writing Tests
-
-```python
-import pytest
-from django.test import TestCase
-from django.urls import reverse
-from rest_framework.test import APITestCase
-from rest_framework import status
-
-class TestProjectModel(TestCase):
-    def setUp(self):
-        # Setup test data
-        pass
-
-    def test_project_creation(self):
-        # Test project creation
-        pass
-
-    def test_project_str_method(self):
-        # Test string representation
-        pass
-
-class TestProjectAPI(APITestCase):
-    def setUp(self):
-        # Setup API test data
-        pass
-
-    def test_list_projects(self):
-        # Test API endpoints
-        pass
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with verbose output
-pytest -v
-
-# Run specific test class
-pytest tests/test_models.py::TestProjectModel
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run Django tests
-python manage.py test
-```
-
-### Test Coverage Goals
-
-- **Models**: 90%+ coverage
-- **Views**: 85%+ coverage
-- **Serializers**: 90%+ coverage
-- **CLI**: 80%+ coverage
-- **Overall**: 85%+ coverage
-
-## 📚 Documentation
-
-### Documentation Types
-
-- **README.md**: Project overview and setup
-- **CONSOLE.md**: CLI usage guide
-- **API Documentation**: Auto-generated via DRF Spectacular
-- **Code Documentation**: Docstrings and comments
-- **Architecture Docs**: System design and decisions
-
-### Writing Documentation
-
-- Use clear, concise language
-- Include code examples where helpful
-- Keep screenshots up to date
-- Document breaking changes
-- Update docs with new features
-
-### API Documentation
-
-API docs are automatically generated. To update:
-
-```bash
-# Generate OpenAPI schema
-python manage.py spectacular --file schema.yml
-
-# View in browser
+git clone https://github.com/AyoubArdem/ai-accelerator.git
+cd ai-accelerator
+
+python -m venv env1
+# Windows:
+env1\Scripts\activate
+# Linux/macOS:
+# source env1/bin/activate
+
+pip install -e .
+pip install -e ".[dev]"
+
+python manage.py migrate
 python manage.py runserver
-# Visit: http://127.0.0.1:8000/api/schema/swagger-ui/
 ```
 
-## 🐛 Reporting Issues
+Optional:
 
-### Bug Reports
+```bash
+python manage.py createsuperuser
+```
 
-When reporting bugs, please include:
+## Branching and Workflow
 
-- **Clear title** describing the issue
-- **Steps to reproduce** the problem
-- **Expected behavior** vs actual behavior
-- **Environment details** (OS, Python version, etc.)
-- **Error messages** and stack traces
-- **Screenshots** if applicable
+1. Create a branch from `main`.
+2. Keep each PR focused on one logical change.
+3. Add tests for behavior changes.
+4. Update docs for user-visible changes.
 
-### Feature Requests
+Branch naming examples:
 
-For new features, please provide:
+- `feat/deployment-services`
+- `fix/governance-duplicate-assignment`
+- `docs/readme-cleanup`
 
-- **Clear description** of the proposed feature
-- **Use case** and why it's needed
-- **Implementation ideas** if you have them
-- **Mockups** or examples if applicable
+## Coding Standards
 
-### Issue Labels
+- Follow PEP 8
+- Format with `black`
+- Keep imports clean and consistent
+- Use clear names and small functions
+- Add comments only when needed to explain non-obvious logic
 
-- `bug`: Something isn't working
-- `enhancement`: New feature or improvement
-- `documentation`: Documentation issues
-- `good first issue`: Suitable for newcomers
-- `help wanted`: Community contribution needed
-- `question`: General questions
+Run formatting/linting before opening a PR:
 
-## 🔄 Pull Request Process
+```bash
+black .
+flake8 .
+```
 
-### PR Requirements
+## Testing
 
-Before submitting a PR:
+Run tests locally before submitting:
 
+```bash
+pytest
+python manage.py test
+```
+
+If your change touches CLI/API behavior, include tests or clear manual verification steps in the PR description.
+
+## Documentation Requirements
+
+When changing user-facing behavior, update the relevant docs:
+
+- `README.md` for platform-level behavior
+- `CONSOLE.md` for CLI command usage
+- `CHANGELOG.md` under `Unreleased`
+
+## Pull Request Guidelines
+
+A good PR should include:
+
+- What changed
+- Why it changed
+- How it was tested
+- Any breaking change notes
+
+Checklist before submit:
+
+- [ ] Code builds/runs locally
 - [ ] Tests pass locally
-- [ ] Code follows style guidelines
-- [ ] Documentation updated
-- [ ] Commit messages are clear
-- [ ] No merge conflicts
+- [ ] Formatting/lint checks pass
+- [ ] Docs updated (if needed)
+- [ ] Changelog updated (if needed)
 
-### PR Template
+## Commit Messages
 
-Please fill out the PR template with:
+Use clear commit messages. Conventional commits are preferred:
 
-- **Description**: What changes were made and why
-- **Type of change**: Bug fix, feature, documentation, etc.
-- **Breaking changes**: Any breaking changes?
-- **Testing**: How was this tested?
-- **Checklist**: All requirements met?
-
-### Review Process
-
-1. **Automated checks** run (tests, linting, formatting)
-2. **Maintainer review** for code quality and design
-3. **Community feedback** if needed
-4. **Approval and merge** or requested changes
-
-### Commit Message Guidelines
-
-Follow conventional commit format:
-
-```
-type(scope): description
-
-[optional body]
-
-[optional footer]
+```text
+feat(scope): short summary
+fix(scope): short summary
+docs(scope): short summary
+test(scope): short summary
+chore(scope): short summary
 ```
 
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `test`: Testing
-- `chore`: Maintenance
+## Reporting Bugs and Requesting Features
 
-## 🌐 Community
+- Use GitHub Issues for bugs and feature requests.
+- Include reproduction steps, expected behavior, and actual behavior.
+- Add environment details when relevant (OS, Python version, command used).
 
-### Communication Channels
+## Security Issues
 
-- **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: General discussions and questions
-- **Pull Request comments**: Code review discussions
+Do not post sensitive vulnerabilities publicly in Issues.
+Follow `SECURITY.md` for responsible reporting.
 
-### Getting Help
+## Review and Merge Process
 
-- Check existing issues and documentation first
-- Use clear, descriptive titles for issues
-- Provide context and examples
-- Be patient and respectful
+1. Automated and manual checks are reviewed.
+2. Maintainers may request changes.
+3. Once approved, a maintainer merges the PR.
 
-### Recognition
+## License
 
-Contributors are recognized through:
-- GitHub contributor statistics
-- Mention in release notes
-- Attribution in documentation
-- Community acknowledgments
-
-## 📄 License
-
-By contributing to this project, you agree that your contributions will be licensed under the same license as the project (see LICENSE file).
-
-## 🙏 Thank You
-
-Your contributions help make AI Accelerator better for everyone. We appreciate your time and effort in helping build this platform!
-
----
-
-*This contributing guide is inspired by open source best practices and the Django project's contribution guidelines.*
+By contributing, you agree that your contributions are licensed under the same license as this repository (`LICENSE`).

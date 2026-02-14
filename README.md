@@ -1,5 +1,20 @@
 
-# 🚀 AI Accelerator Platform
+# AI Accelerator Platform
+
+## Project Logo
+
+Place your logo files in `assets/`:
+- `assets/logo-light.png` for light theme
+- `assets/logo-dark.png` for dark theme
+- optional fallback: `assets/logo.png`
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png" />
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png" />
+    <img src="assets/logo.png" alt="AI Accelerator Logo" width="220" />
+  </picture>
+</p>
 
 **AI Accelerator** is an end-to-end platform designed to **deploy, monitor, and govern machine learning models in production** in a secure, scalable, and auditable way.
 
@@ -9,7 +24,105 @@
 
 The project aims to be a **core MLOps foundation** for companies, ML teams, and developers who want to move from experimental notebooks to **real production-grade AI systems**.
 
-## 📦 Installation
+## Project Overview
+
+AI Accelerator is organized as a modular MLOps platform with four core layers:
+
+- Control layer: the `aiac` CLI for operators and CI/CD automation.
+- API layer: Django + DRF endpoints for deployment, monitoring, governance, and auth.
+- Runtime layer: model-serving runtime (FastAPI-based services created by deployments).
+- Background layer: Celery workers for asynchronous tasks (deployment lifecycle, policy/monitoring workflows).
+
+The platform is designed to support the full model lifecycle:
+
+1. Register users and authenticate with JWT.
+2. Create projects and model versions.
+3. Deploy model versions as live services.
+4. Collect runtime records and drift signals.
+5. Enforce governance policies and track violations.
+6. Review alerts, insights, and audit trails.
+
+## Application Breakdown
+
+### Deployment App (`deployment`)
+
+Primary role: convert model artifacts into running inference services.
+
+What it manages:
+
+- Project and model-version registries.
+- Deployment lifecycle states (`PENDING`, `DEPLOYING`, `ACTIVE`, `FAILED`, etc.).
+- Runtime endpoint generation (predict, health, docs, UI routes).
+- Service-level operations (redeploy, stop, delete, readiness checks).
+- Advanced runtime tooling (advisor, services map, traffic shadow analysis).
+
+Operational value:
+
+- Standardizes how models are released.
+- Reduces manual deployment mistakes.
+- Makes rollout behavior observable and automatable.
+
+### Monitoring App (`monitoring`)
+
+Primary role: continuously observe deployed systems and detect behavior changes.
+
+What it manages:
+
+- Deployment telemetry (CPU, RAM, latency, request/error counters).
+- Time-series-like record retrieval and health reporting.
+- Drift detection workflows with configurable thresholds/profiles.
+- Alert generation and alert resolution workflows.
+- Cost intelligence and optimization recommendations.
+
+Operational value:
+
+- Detects issues before they become incidents.
+- Helps teams tune reliability and performance.
+- Provides data needed for capacity and cost decisions.
+
+### Governance App (`governance`)
+
+Primary role: define and enforce policy controls over deployment and monitoring behavior.
+
+What it manages:
+
+- Policy definitions (including metadata/rules payloads).
+- Policy-to-deployment assignment.
+- Violation detection and severity tracking.
+- Policy engine execution and debug tooling.
+- Governance insights and alert logs.
+
+Operational value:
+
+- Adds compliance guardrails to ML operations.
+- Improves traceability and accountability.
+- Enables policy-driven control instead of ad hoc rules.
+
+### Authentication and User App (`users` / `auth`)
+
+Primary role: identity and access control.
+
+What it manages:
+
+- Account registration and login/logout.
+- JWT issuance and token refresh flow.
+- Role-based access boundaries for platform actions.
+
+Operational value:
+
+- Secures operational endpoints.
+- Supports separation of duties (admin/engineer/auditor patterns).
+
+## How Apps Work Together
+
+- Deployment provides live endpoints and runtime metadata.
+- Monitoring consumes runtime activity and produces health/drift/alert signals.
+- Governance evaluates those signals plus deployment actions against policy rules.
+- Auth ensures every action is attributable to an authenticated identity.
+
+This separation keeps each app focused while enabling integrated platform behavior across the full production AI lifecycle.
+
+## Installation
 
 ### From PyPI (Recommended)
 
@@ -48,7 +161,7 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Start the Platform
 
@@ -72,7 +185,7 @@ Visit the interactive API documentation:
 aiac --help
 ```
 
-## 📚 Documentation & Resources
+## Documentation & Resources
 
 | Document | Description |
 |----------|-------------|
@@ -86,18 +199,18 @@ aiac --help
 
 
 
-## 🎯 Project Vision & Goals
+## Project Vision & Goals
 
 Modern AI teams face critical challenges:
 
-* ❌ Manual and inconsistent model deployment
-* ❌ Lack of monitoring after deployment
-* ❌ No detection of **data drift / model drift**
-* ❌ Missing governance and policy enforcement
-* ❌ Poor auditability and traceability
-* ❌ Over-reliance on complex UIs instead of DevOps tools
+* Manual and inconsistent model deployment
+* Lack of monitoring after deployment
+* No detection of **data drift / model drift**
+* Missing governance and policy enforcement
+* Poor auditability and traceability
+* Over-reliance on complex UIs instead of DevOps tools
 
-✅ **AI Accelerator** addresses these challenges by providing:
+ **AI Accelerator** addresses these challenges by providing:
 
 * Automated model deployment
 * Continuous monitoring & drift detection
@@ -107,148 +220,90 @@ Modern AI teams face critical challenges:
 
 ---
 
-## 🧱 High-Level Architecture
+## High-Level Architecture
 
 ```
-                ┌─────────────┐
-                │     CLI     │  ← aiac
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │   Django    │
-                │   Backend   │
-                └──────┬──────┘
-        ┌──────────────┼────────────────┐
-        │              │                │
-┌───────▼───────┐ ┌────▼────────┐ ┌─────▼─────────┐
-|Deployment App │ │ Monitoring  │ │ Governance    │
-│ (Docker + API)│ │ (Drift etc) │ │ (Policies)    │
-└───────────────┘ └─────────────┘ └───────────────┘
+                 +-----------------+
+                 |   CLI (`aiac`)  |
+                 +--------+--------+
+                          |
+                 +--------v--------+
+                 | Django Backend  |
+                 +---+---------+---+
+                     |         |
+      +--------------+         +----------------+
+      |                                       |
++-----v-----------+                 +---------v---------+
+| Deployment App  |                 | Monitoring App    |
+| (runtime/API)   |                 | (drift/alerts)    |
++-----------------+                 +---------+---------+
+                                              |
+                                    +---------v---------+
+                                    | Governance App    |
+                                    | (policies/audit)  |
+                                    +-------------------+
 ```
 
 ---
 
-## 📦 Core Applications
+## Core Applications
 
-### 1️⃣ Deployment App
+This section is a quick map. For detailed responsibilities and architecture, see `Application Breakdown` above.
 
-Responsible for **deploying ML models as real services**.
+- `deployment`: model versions, runtime services, deployment lifecycle.
+- `monitoring`: runtime telemetry, drift detection, alerts, and reporting.
+- `governance`: policies, assignments, violations, and enforcement workflows.
+- `aiac` CLI: operational interface to automate platform workflows.
 
-**Key features:**
+### Governance Metadata Example
 
-* Model version management
-* Docker-based deployment
-* Automatic FastAPI inference service
-* Deployment lifecycle tracking (deploying / active / failed)
-* Port governance and runtime control
-
-**Why it matters:**
-
-> Turns ML models into scalable, production-ready APIs.
-
----
-
-### 2️⃣ Monitoring App
-
-Responsible for **observing model behavior in production**.
-
-**Key features:**
-
-* Collects production features and predictions
-* Performance monitoring (latency, usage)
-* **Data drift & feature drift detection**
-* Drift history tracking
-* Alerting and audit integration
-
-**Drift metrics supported:**
-
-* Population Stability Index (PSI)
-* Kolmogorov–Smirnov test
-* Wasserstein distance
-
-**Why it matters:**
-
-> A model without monitoring is a silent failure waiting to happen.
-
----
-
-### 3️⃣ Governance App
-
-Responsible for **policies, compliance, and control**.
-
-**Key features:**
-
-* Declarative governance policies (YAML / metadata-based)
-* Role-based access control (RBAC)
-* Policy enforcement across deployment & monitoring
-* Violation tracking
-* Read-only audit access
-
-**An example of Metadata-based**
-
+```yaml
 # metadata.yaml
-* version: 1.0
+version: 1.0
 
-### =========================
-## Role-Based Access Control
-### =========================
-> role_permissions:
-  * admin:
+target: both   # deployment | monitoring | both
+
+role_permissions:
+  admin:
     - deployment:*
     - monitoring:*
     - governance:*
     - audit:read
-
-  * engineer:
+  engineer:
     - deployment:read
     - deployment:write
     - monitoring:read
-
-  * auditor:
+  auditor:
     - audit:read
 
-### =========================
-## Deployment Runtime Config
-### =========================
-> deployment:
-  * id : deployment.id,
-  * name : deployment.name,
-  * port : deployment.port,
-  * status : deployment.status,
+deployment:
+  id: deployment.id
+  name: deployment.name
+  port: deployment.port
+  status: deployment.status
 
-### =========================
-## Drift Monitoring Config
-### =========================
-> drift_monitoring:
-  * enabled: true
+drift_monitoring:
+  enabled: true
+  check_strategy:
+    type: request_based   # request_based | time_based
+    every_n_requests: 1000
+    interval_minutes: 60
 
-  * check_strategy:
-    - type: request_based              # request_based | time_based
-    - every_n_requests: 1000           # used if request_based
-    - interval_minutes: 60             # used if time_based
+monitoring:
+  enabled: true
 
-> monitoring: 
-  * enabled: True
-
-                
-            
-
-> metrics:
-
-    * psi:
-       - enabled: true
-       - warning: 0.1
-       - critical: 0.25
-    
-    * ks_test:
-       - enabled: true
-       - p_value_threshold: 0.05
-
-    * wasserstein:
-      - enabled: true
-      - warning: 0.2
-
-  
+metrics:
+  psi:
+    enabled: true
+    warning: 0.1
+    critical: 0.25
+  ks_test:
+    enabled: true
+    p_value_threshold: 0.05
+  wasserstein:
+    enabled: true
+    warning: 0.2
+```
 
 **Example policies:**
 
@@ -259,32 +314,7 @@ Responsible for **policies, compliance, and control**.
 
 ---
 
-### 4️⃣ AIAC – Command Line Interface
-
-**professional CLI** for interacting with the platform.
-
-**Built with:**
-
-* Typer
-* Rich
-
-**Capabilities:**
-
-* Deploy and manage models
-* Monitor metrics and drift
-* Inspect audit logs
-* Validate governance policies
-* Automate workflows (CI/CD friendly)
-
-**Why CLI?**
-
-* Designed for ML Engineers & DevOps
-* Scriptable and automatable
-* Faster and more reliable than GUIs
-
----
-
-## �️ CLI Commands Reference
+## CLI Commands Reference
 
 The AIAC CLI provides comprehensive command-line access to all platform features. Commands are organized into logical groups for easy navigation.
 
@@ -384,14 +414,14 @@ aiac deployment deploy-model-version
 ### Output Formatting
 
 Commands use **Rich** library for beautiful terminal output:
-- 📊 **Tables** for listing data
-- 🎨 **Colored output** for status and warnings
-- 📋 **Structured information** display
-- ⚠️ **Clear error messages** and success confirmations
+- **Tables** for listing data
+- **Colored output** for status and warnings
+- **Structured information** display
+- **Clear error messages** and success confirmations
 
 ---
 
-## 🔗 API Endpoints
+## API Endpoints
 
 The platform provides REST APIs for all functionality. Key endpoints include:
 
@@ -418,7 +448,7 @@ The platform provides REST APIs for all functionality. Key endpoints include:
 - `POST /api/governance/policies/` - Create policy
 - `GET /api/governance/violations/` - List violations
 
-## 🔐 Authentication & Security
+## Authentication & Security
 
 ### JWT Token Authentication
 
@@ -438,33 +468,33 @@ Three user roles with different permissions:
 
 ### Security Features
 
-- ✅ JWT-based authentication
-- ✅ Role-based permissions
-- ✅ API key support for model inference
-- ✅ Service tokens for monitoring agents
-- ✅ Immutable audit logging
-- ✅ Input validation and sanitization
+- JWT-based authentication
+- Role-based permissions
+- API key support for model inference
+- Service tokens for monitoring agents
+- Immutable audit logging
+- Input validation and sanitization
 
 ---
 
-## 🧠 Why This Project Matters
+## Why This Project Matters
 
-* 🔹 Combines **ML, Backend, DevOps, and Governance**
-* 🔹 Inspired by real-world platforms:
+* Combines **ML, Backend, DevOps, and Governance**
+* Inspired by real-world platforms:
 
   * AWS SageMaker
   * Google Vertex AI
   * MLflow + Kubernetes ecosystems
-* 🔹 Suitable for:
+* Suitable for:
 
   * Advanced learning
   * Research-to-production workflows
   * Startup or enterprise foundations
-* 🔹 Fully extensible and modular
+* Fully extensible and modular
 
 ---
 
-## � Docker Deployment
+## Docker Deployment
 
 The platform supports containerized deployment for production environments.
 
@@ -523,7 +553,7 @@ docker run -p 8000:8000 \
   -e REDIS_URL=redis://... \
   ai-accelerator:latest
 ```
-## 📦 Requirements & Dependencies
+## Requirements & Dependencies
 
 ### System Requirements
 
@@ -612,7 +642,7 @@ This includes:
 - `pre-commit>=3.6.0` - Git hooks
 
 ---
-## � API Documentation
+## API Documentation
 
 The platform provides comprehensive API documentation through **Swagger UI**, allowing you to explore and test all available endpoints interactively.
 
@@ -634,11 +664,11 @@ The platform provides comprehensive API documentation through **Swagger UI**, al
 
 ### What you'll find in the documentation:
 
-* 🔍 **Interactive API Explorer** - Test endpoints directly from the browser
-* 📋 **Complete endpoint listing** - All available API operations
-* 📝 **Request/Response schemas** - Detailed data structures
-* 🔐 **Authentication requirements** - JWT token usage
-* 📊 **Model schemas** - Data models and relationships
+* **Interactive API Explorer** - Test endpoints directly from the browser
+* **Complete endpoint listing** - All available API operations
+* **Request/Response schemas** - Detailed data structures
+* **Authentication requirements** - JWT token usage
+* **Model schemas** - Data models and relationships
 
 ### Authentication
 
@@ -650,16 +680,16 @@ To test protected endpoints, you'll need to:
 
 ---
 
-## 🚀 Project Status
+## Project Status
 
-**AI Accelerator v0.1.0** is now available on PyPI! 🎉
+**AI Accelerator v0.1.0** is now available on PyPI! 
 
 ### Current Status
-- ✅ **Core functionality** implemented and tested
-- ✅ **PyPI package** published and installable
-- ✅ **CLI tool** fully functional
-- ✅ **API documentation** complete
-- ✅ **Docker support** for containerized deployment
+- **Core functionality** implemented and tested
+- **PyPI package** published and installable
+- **CLI tool** fully functional
+- **API documentation** complete
+- **Docker support** for containerized deployment
 
 ### Roadmap (Future Releases)
 
@@ -694,11 +724,11 @@ To test protected endpoints, you'll need to:
 - **Docker Images**: Production-ready
 
 ### Support
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions from the community! Here's how to get started:
 
@@ -773,18 +803,18 @@ pytest tests/test_deployment.py
 
 ### Areas for Contribution
 
-- 🐛 **Bug fixes** - Help us squash bugs
-- ✨ **New features** - Add monitoring metrics, governance policies, etc.
-- 📚 **Documentation** - Improve docs, add tutorials, examples
-- 🧪 **Testing** - Add more comprehensive tests
-- 🎨 **UI/UX** - Web dashboard, improved CLI output
-- 🔧 **DevOps** - Kubernetes support, CI/CD improvements
+- **Bug fixes** - Help us squash bugs
+- **New features** - Add monitoring metrics, governance policies, etc.
+- **Documentation** - Improve docs, add tutorials, examples
+- **Testing** - Add more comprehensive tests
+- **UI/UX** - Web dashboard, improved CLI output
+- **DevOps** - Kubernetes support, CI/CD improvements
 
 
 
 
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 AI Accelerator builds upon the excellent work of the open-source community:
 
@@ -797,12 +827,12 @@ AI Accelerator builds upon the excellent work of the open-source community:
 
 Special thanks to all contributors and the MLOps community for inspiration and feedback.
 
-## 📄 License
+## License
 
 This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
 
 ```
-Copyright 2026 Ayoub Ardem
+Copyright 2026 AI Accelerator Team
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -819,7 +849,7 @@ limitations under the License.
 
 ---
 
-## 📞 Contact & Support
+## Contact & Support
 
 - **Email**: [ayoub.ardem@example.com]
 - **GitHub**: [@AyoubArdem](https://github.com/AyoubArdem)
@@ -827,9 +857,13 @@ limitations under the License.
 
 ---
 
-**AI Accelerator** is more than a project — it's a **production-grade AI platform blueprint**.
+**AI Accelerator** is more than a project; it's a **production-grade AI platform blueprint**.
 
-> Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable — from experimentation to real-world impact.
+> Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable from experimentation to real-world impact.
 
-🚀 **Let's build the future of AI infrastructure together!**
+ **Let's build the future of AI infrastructure together!**
+
+
+
+
 

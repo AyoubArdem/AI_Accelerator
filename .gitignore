@@ -1,0 +1,76 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Virtual environments
+env/
+env1/
+venv/
+ENV/
+.venv/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+ai_accelerator.egg-info/
+
+# Django
+*.sqlite3
+db.sqlite3
+*.log
+*.pot
+*.so
+*.mo
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+local_settings.py
+settings_local.py
+
+# Coverage / testing
+*.coverage
+.coverage.*
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+.env.dev
+.env.test
+# Keep env.example tracked for onboarding
+!env.example
+
+# Migrations
+# Keep migration files, ignore only caches
+**/migrations/__pycache__/
+media/
+.aiac/
+# VS Code
+.vscode/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Misc
+*.http
+
+# Swap/temp directories
+swp/

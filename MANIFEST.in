@@ -3,7 +3,6 @@ include README.md
 include LICENSE
 include CHANGELOG.md
 include requirements.txt
-recursive-include examples *.py
 recursive-include aiac *.py
 recursive-include AI_Accelerator *.py
 recursive-include deployment *.py

@@ -9,6 +9,9 @@ from .views import (
     RedeployView,
     StopDeploymentView,
     DeleteDeploymentView,
+    DeploymentAdvisorAPIView,
+    DeploymentTrafficShadowAPIView,
+    DeploymentServiceCatalogAPIView,
     ModelVersionDelete,
     ProjectDelete,
 )
@@ -27,5 +30,8 @@ urlpatterns = [
     path("deployments/<int:deployment_id>/redeploy/", RedeployView.as_view()),
     path("deployments/<int:deployment_id>/stop/", StopDeploymentView.as_view()),
     path("deployments/<int:deployment_id>/delete/", DeleteDeploymentView.as_view()),
+    path("deployments/<int:deployment_id>/advisor/", DeploymentAdvisorAPIView.as_view()),
+    path("deployments/<int:deployment_id>/traffic-shadow/", DeploymentTrafficShadowAPIView.as_view()),
+    path("deployments/<int:deployment_id>/services/", DeploymentServiceCatalogAPIView.as_view()),
 
 ]

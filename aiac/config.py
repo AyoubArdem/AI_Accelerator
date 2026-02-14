@@ -2,13 +2,13 @@ from pathlib import Path
 import json
 
 def get_config():
-    api_base_url = "http://localhost:8000"
+    api_base_url = "http://127.0.0.1:8000"
     return type("Config", (object,), {"api_base_url": api_base_url})()
 
 
 def save_config(data: dict, api_base_url: str):
     folder = Path.home() / ".aiac"
-    folder.parent.mkdir(exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)
     config_file = folder / "config.json"
 
     with open(config_file, "w") as f:
@@ -23,4 +23,4 @@ def load_config():
             data = json.load(f)
         return data
     else:
-        return f"Config file not found at {config_file}"
+        return {}

@@ -1,106 +1,99 @@
 # Security Policy
 
-## 🔒 Security Overview
+Security is a core requirement for AI Accelerator. This project handles model artifacts, deployment runtimes, monitoring data, and governance controls, so responsible vulnerability reporting and secure operation are essential.
 
-AI Accelerator takes security seriously. As an AI/ML platform handling sensitive models and data, we are committed to ensuring the security of our users and their deployments.
+## Supported Versions
 
-## 🚨 Reporting Security Vulnerabilities
+The following support policy applies for security updates:
 
-If you discover a security vulnerability, please report it responsibly:
+| Version | Security Support |
+|--------|-------------------|
+| Current stable release | Yes |
+| Previous minor release | Yes, for 12 months after next release |
+| Older releases | No |
 
-### 📧 Contact Information
-- **GitHub Discussions**: [Security Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
-- **Response Time**: We aim to respond within 72 hours
-- **Disclosure**: We follow responsible disclosure practices
+If your version is unsupported, upgrade to the latest stable release before requesting a fix.
 
-### 📝 What to Include
-When reporting a vulnerability, please provide:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fixes (if any)
-- Your contact information for follow-up
+## Reporting a Vulnerability
 
-## 🛡️ Security Measures
+If you believe you found a security issue:
 
-### Authentication & Authorization
-- JWT-based authentication with configurable expiration
-- Role-based access control (RBAC)
-- Multi-factor authentication support
-- Secure password policies
+1. Do not open a public issue with exploit details.
+2. Report via GitHub Discussions: [Security Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
+3. Include enough detail for reproduction and impact analysis.
 
-### Data Protection
-- Encryption at rest and in transit
-- Secure API key management
-- Input validation and sanitization
-- SQL injection prevention
+### What to Include
 
-### Model Security
-- Container isolation for model deployments
-- Resource limits and quotas
-- Model validation before deployment
-- Secure model artifact storage
+- A clear description of the issue
+- Affected component(s) and version(s)
+- Step-by-step reproduction
+- Proof of concept (minimal and safe)
+- Impact assessment (confidentiality, integrity, availability)
+- Suggested mitigation (if available)
 
-### Infrastructure Security
-- Docker container security best practices
-- Network segmentation
-- Regular security updates
-- Monitoring and logging
+### Response Targets
 
-## 🔍 Security Best Practices for Users
+- Initial acknowledgment: within 72 hours
+- Triage decision: within 7 days
+- Status updates: at least every 7 days until resolution
 
-### API Usage
-- Always use HTTPS in production
-- Rotate API keys regularly
-- Implement proper error handling
-- Validate all inputs
+These are targets, not guarantees, but we aim to meet them consistently.
 
-### Model Deployment
-- Scan models for vulnerabilities before deployment
-- Use trusted base images
-- Implement resource limits
-- Monitor model performance and drift
+## Coordinated Disclosure
 
-### Access Control
-- Follow principle of least privilege
-- Regularly audit user permissions
-- Use strong passwords
-- Enable MFA when available
+We follow coordinated (responsible) disclosure:
 
-## 📋 Security Updates
+- Please allow time for investigation and patching before public disclosure.
+- Avoid sharing exploit details publicly until a fix or mitigation is available.
+- We will credit reporters in advisories/releases when permission is granted.
 
-### Version Support
-- **Current Version**: Actively supported with security updates
-- **Previous Versions**: Security updates for 1 year after release
-- **End of Life**: Clear communication 3 months in advance
+## Security Scope
 
-### Update Process
-- Security patches released as soon as possible
-- Clear documentation of fixes
-- Migration guides for breaking changes
-- Communication through multiple channels
+This policy covers:
 
-## 🔬 Security Testing
+- CLI/API authentication and authorization behavior
+- Deployment runtime and service exposure
+- Monitoring ingestion and drift/alert pipelines
+- Governance policy evaluation and enforcement paths
+- Dependency and container security risks
 
-### Automated Testing
-- Static application security testing (SAST)
+Out of scope:
+
+- Best-effort issues without clear security impact
+- Vulnerabilities only present in heavily modified forks
+- Social engineering attempts without platform weaknesses
+
+## Secure Deployment Guidance
+
+For production usage:
+
+- Use HTTPS and secure reverse proxies.
+- Rotate JWT/API/service credentials regularly.
+- Restrict network exposure of internal services.
+- Apply least-privilege RBAC for users and service accounts.
+- Keep Docker base images and Python dependencies updated.
+- Enable centralized logs and monitor auth/deployment anomalies.
+- Avoid storing secrets in source control or container images.
+
+## Dependency and Patch Management
+
+- Track dependency CVEs and update promptly.
+- Prioritize fixes for authentication, remote code execution, and data exposure issues.
+- Release notes/changelog should document security-relevant fixes.
+
+## Security Testing Expectations
+
+Recommended controls for maintainers and contributors:
+
 - Dependency vulnerability scanning
 - Container image scanning
-- Regular penetration testing
+- Static analysis and linting in CI
+- Targeted tests for auth, permissions, and input validation
 
-### Manual Testing
-- Code review security checklists
-- Threat modeling exercises
-- Red team exercises
-- Bug bounty program (planned)
+## Contact
 
-## 📞 Contact
+For security reports and related questions:
 
-For security-related questions or concerns:
-- **GitHub Discussions**: [Security Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
-- **Bug Reports**: Use GitHub Issues with "security" label
-- **Documentation**: This security policy
+- Security channel: [Security Discussions](https://github.com/AyoubArdem/AI_Accelerator/discussions)
 
-## 📜 Acknowledgments
-
-We appreciate the security research community for helping keep our platform secure. Security researchers who report vulnerabilities responsibly will be acknowledged (with permission) in our security advisories.
+Use normal GitHub Issues for non-sensitive bugs and feature requests.

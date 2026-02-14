@@ -8,42 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of AI Accelerator platform
-- Django REST API with JWT authentication
-- DRF Spectacular API documentation
-- AIAC command-line interface
-- Model deployment with Docker integration
-- Monitoring and drift detection
-- Governance and policy management
-- Comprehensive documentation suite
+- Advanced deployment services endpoints and CLI commands:
+  - `deployment advisor`
+  - `deployment services`
+  - `deployment traffic-shadow`
+- Runtime URL bundle exposure for deployments (UI page, docs, redoc, health, predict).
+- Monitoring advanced service endpoints and CLI commands:
+  - `monitoring health-report`
+  - `monitoring cost-intelligence`
+- Governance advanced operations:
+  - `governance run-policy-engine`
+  - `governance debug-policy-engine`
+  - `governance policy-insights`
+- Interactive metadata-based policy rule generation in `governance create-policy` with scope support (`deployment`, `monitoring`, `both`).
+- Improved command documentation in `CONSOLE.md` and richer project/application explanations in `README.md`.
 
-### Features
-- Project and model version management
-- Automated model deployment as FastAPI services
-- Real-time performance monitoring
-- Data drift detection with multiple algorithms
-- Role-based access control
-- Policy enforcement and compliance tracking
-- Rich CLI with interactive prompts
+### Changed
+- Upgraded deployment workflow UX in CLI:
+  - prechecks before deployment
+  - better progress tracking and status output
+  - runtime service URL visibility after successful deploy/redeploy
+- Enhanced drift detection UX with threshold profiles, history display, and watch mode.
+- Expanded monitoring records/stats commands with better summaries and output formats.
+- Standardized command examples to package-style usage (`aiac ...`).
+
+### Fixed
+- Friendlier error handling across deployment, monitoring, and governance commands.
+- Better empty-state messaging for list views (alerts, violations, records, logs).
+- Policy application UX improvements (prompting and duplicate-assignment feedback).
+- README formatting/encoding cleanup and metadata example rendering.
 
 ## [0.1.0] - 2026-02-02
 
 ### Added
-- Core Django application structure
-- User authentication system
-- Basic CRUD operations for projects and models
-- Initial API endpoints
-- Database models and relationships
-- Basic CLI commands
-- Development environment setup
+- Initial AI Accelerator platform release.
+- Django REST API foundation with JWT authentication.
+- Core deployment, monitoring, and governance application modules.
+- Project/model version management and initial deployment lifecycle support.
+- AIAC command-line interface with interactive prompts.
+- OpenAPI schema and interactive API docs.
+- Docker-based local deployment support.
+- Initial documentation set (`README`, `CONSOLE`, contribution/security/community files).
 
 ### Technical
-- Django 5.2.8 with Django REST Framework
-- PostgreSQL/SQLite database support
-- Redis for caching and Celery
-- Docker integration for model deployment
-- JWT authentication
-- OpenAPI schema generation
+- Django 5.2.8 + Django REST Framework.
+- PostgreSQL/SQLite support.
+- Redis and Celery integration.
+- JWT-based authentication and authorization foundations.
 
 ---
 

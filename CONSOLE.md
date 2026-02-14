@@ -1,182 +1,536 @@
-# 🚀 AIAC Console Usage Guide
+# AIAC Console Command Reference
 
-## How to Run and Use the AIAC Console
+This document lists all currently available CLI commands and their options.
 
-### Prerequisites
+## Run Forms
 
-Before using the AIAC CLI, ensure you have:
-
-1. **AI Accelerator installed:**
-   ```bash
-   pip install ai-accelerator
-   ```
-
-2. **Django server running** in the background (if running from source)
-3. **Virtual environment activated** (if running from source)
-
-### Starting the Server (Development)
-
-If running from source, start your Django development server:
+Use this form:
 
 ```bash
-# Activate virtual environment
-source env1/bin/activate  # On Windows: env1\Scripts\activate
-
-# Start Django server
-python manage.py runserver
-
-# Server will be available at: http://127.0.0.1:8000
+aiac <group> <command> [options]
 ```
 
-### Using the AIAC Console
+## Command Groups
 
-Once installed, use the AIAC CLI from anywhere:
+- `auth`
+- `deployment`
+- `monitoring`
+- `governance`
+
+## Quick Help
 
 ```bash
-# Check CLI help
 aiac --help
-
-# View available command groups
-aiac
-
-# Get help for specific command group
+aiac auth --help
 aiac deployment --help
 aiac monitoring --help
 aiac governance --help
-aiac auth --help
 ```
 
-### Complete Setup and Usage Workflow
+## auth
 
+### `auth register`
+Register a new user.
+
+Options:
+- `--email` (prompted if omitted)
+- `--username` (prompted if omitted)
+- `--password` (prompted, hidden)
+- `--role` (prompted)
+
+Example:
 ```bash
-# Terminal 1: Start the server
-source env1/Scripts/activate
-python manage.py runserver
+aiac auth register --email user@example.com --username user1 --password secret --role client
+```
 
-# Terminal 2: Use the CLI
-source env1/Scripts/activate
+### `auth login`
+Login and save access/refresh tokens.
 
-# 1. Register/Login first
-aiac auth register
-# or
-aiac auth login
+Options:
+- `--email` (prompted)
+- `--password` (prompted, hidden)
 
-# 2. Create and manage projects
+Example:
+```bash
+aiac auth login --email user@example.com --password secret
+```
+
+### `auth logout`
+Logout using refresh token (or saved token if blank).
+
+Options:
+- `--refresh-token` (prompted, hidden)
+
+Example:
+```bash
+aiac auth logout
+```
+
+### `auth me`
+Show current authenticated user info.
+
+Example:
+```bash
+aiac auth me
+```
+
+### `auth token-show`
+Verify credentials then show masked saved tokens.
+
+Options:
+- `--email` (prompted)
+- `--password` (prompted, hidden)
+
+Example:
+```bash
+aiac auth token-show --email user@example.com --password secret
+```
+
+## deployment
+
+### `deployment create-project-deployment`
+Create a new project.
+
+Options:
+- `--owner-id` (prompted)
+- `--name` (prompted)
+- `--description` (prompted)
+
+Example:
+```bash
 aiac deployment create-project-deployment
+```
+
+### `deployment list-projects`
+List all projects.
+
+Example:
+```bash
 aiac deployment list-projects
+```
 
-# 3. Add model versions
-aiac deployment create-model-version
+### `deployment delete-project`
+Delete a project.
+
+Options:
+- `--project-id` (prompted)
+- `--confirm/--no-confirm` (default confirm)
+
+Example:
+```bash
+aiac deployment delete-project --project-id 2 --no-confirm
+```
+
+### `deployment create-model-version`
+Create model version from file upload.
+
+Options:
+- `--project-id` (prompted)
+- `--description` (prompted)
+- `--field-file-path` (prompted)
+
+Example:
+```bash
+aiac deployment create-model-version --project-id 1 --description "v1" --field-file-path model.pkl
+```
+
+### `deployment list-model-versions`
+List all model versions.
+
+Example:
+```bash
 aiac deployment list-model-versions
+```
 
-# 4. Deploy models
-aiac deployment deploy-model-version
+### `deployment delete-model-version`
+Delete a model version.
+
+Options:
+- `--model-version-id` (prompted)
+- `--confirm/--no-confirm` (default confirm)
+
+Example:
+```bash
+aiac deployment delete-model-version --model-version-id 4 --no-confirm
+```
+
+### `deployment deploy-model-version`
+Deploy a model version and optionally track progress.
+
+Options:
+- `--user-id` (prompted)
+- `--model-version-id` (prompted)
+- `--port` (prompted)
+- `--start-worker/--no-start-worker` (default `--start-worker`)
+- `--wait/--no-wait` (default `--wait`)
+- `--poll-interval-seconds` (default `2`)
+- `--timeout-seconds` (default `900`)
+- `--precheck/--no-precheck` (default `--precheck`)
+- `--check-local-port/--no-check-local-port` (default `--check-local-port`)
+- `--format, -f` (`text|json`, default `text`)
+- `--redis-host` (default `localhost`)
+- `--redis-port` (default `6379`)
+
+Example:
+```bash
+aiac deployment deploy-model-version --user-id 14 --model-version-id 4 --port 6000 --format text
+```
+
+### `deployment redeploy-model`
+Redeploy existing deployment.
+
+Options:
+- `--deployment-id` (prompted)
+- `--start-worker/--no-start-worker` (default `--start-worker`)
+- `--wait/--no-wait` (default `--wait`)
+- `--timeout-seconds` (default `900`)
+- `--redis-host` (default `localhost`)
+- `--redis-port` (default `6379`)
+
+Example:
+```bash
+aiac deployment redeploy-model --deployment-id 20
+```
+
+### `deployment stop-deployment`
+Stop a deployment.
+
+Options:
+- `--deployment-id` (prompted)
+
+Example:
+```bash
+aiac deployment stop-deployment --deployment-id 20
+```
+
+### `deployment delete-deployment`
+Delete a deployment.
+
+Options:
+- `--deployment-id` (prompted)
+- `--confirm/--no-confirm` (default confirm)
+
+Example:
+```bash
+aiac deployment delete-deployment --deployment-id 20 --no-confirm
+```
+
+### `deployment list-deployments`
+List all deployments.
+
+Example:
+```bash
 aiac deployment list-deployments
+```
 
-# 5. Monitor deployments
-aiac monitoring deploy-stats
-aiac monitoring detect-drift
+### `deployment get-deployment-details`
+Show deployment details + runtime URLs.
 
-# 6. Set up governance
-aiac governance create-policy
-aiac governance apply-policy
+Options:
+- `--deployment-id` (prompted)
+
+Example:
+```bash
+aiac deployment get-deployment-details --deployment-id 20
+```
+
+### `deployment advisor`
+Advanced advisor report (risk/strategy/metrics).
+
+Options:
+- `--deployment-id` (prompted)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac deployment advisor --deployment-id 20 --format table
+```
+
+### `deployment services`
+Show runtime service URLs and optional health probe.
+
+Options:
+- `--deployment-id` (prompted)
+- `--probe/--no-probe` (default `--no-probe`)
+- `--timeout` (probe timeout, default `2`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac deployment services --deployment-id 20 --probe --format table
+```
+
+### `deployment traffic-shadow`
+Compare active model vs candidate model on recent samples.
+
+Options:
+- `--deployment-id` (prompted)
+- `--candidate, -c` (required candidate model version id)
+- `--samples, -s` (default `200`, clamped `10..1000`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac deployment traffic-shadow --deployment-id 20 --candidate 3 --samples 300 --format json
+```
+
+## monitoring
+
+### `monitoring deploy-stats`
+Live or one-shot deployment stats + health warnings.
+
+Options:
+- `--deployment-id` (prompted)
+- `--format, -f` (`table|json`, default `table`)
+- `--watch, -w` (continuous polling)
+- `--interval, -i` (seconds, default `5`)
+- `--iterations` (`0` = infinite)
+- `--cpu-warn` (default `85.0`)
+- `--ram-warn` (default `85.0`)
+- `--latency-warn` (default `500.0`)
+- `--error-rate-warn` (default `5.0`)
+
+Example:
+```bash
+aiac monitoring deploy-stats --deployment-id 4 --watch --interval 10
+```
+
+### `monitoring deploy-records`
+Show monitoring records with summary; supports table/json/csv.
+
+Options:
+- `--deployment-id` (prompted)
+- `--format, -f` (`table|json|csv`, default `table`)
+- `--limit, -l` (default `50`)
+- `--watch, -w`
+- `--interval, -i` (default `5`)
+- `--iterations` (`0` = infinite)
+- `--cpu-warn` (default `85.0`)
+- `--ram-warn` (default `85.0`)
+- `--latency-warn` (default `500.0`)
+
+Example:
+```bash
+aiac monitoring deploy-records --deployment-id 10 --format table
+```
+
+### `monitoring alert`
+List alerts for deployment.
+
+Options:
+- `--deployment-id` (prompted)
+
+Example:
+```bash
+aiac monitoring alert --deployment-id 18
+```
+
+### `monitoring resolve-alert`
+Resolve alert by id, or choose from deployment alerts.
+
+Options:
+- `--alert-id, -a` (alert UUID)
+- `--deployment-id, -d` (to select alert interactively)
+- `--include-resolved` (include already resolved alerts when selecting)
+- `--yes, -y` (skip confirmation)
+
+Examples:
+```bash
+aiac monitoring resolve-alert --alert-id <uuid>
+aiac monitoring resolve-alert --deployment-id 18
+```
+
+### `monitoring health-report`
+Advanced health report with trends/recommendations.
+
+Options:
+- `--deployment-id` (prompted)
+- `--window, -w` (records window, default `50`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac monitoring health-report --deployment-id 4 --window 100
+```
+
+### `monitoring cost-intelligence`
+Estimated monthly cost + optimization recommendations.
+
+Options:
+- `--deployment-id` (prompted)
+- `--window, -w` (default `200`)
+- `--cpu-hour-rate` (default `0.05`)
+- `--gb-ram-hour-rate` (default `0.01`)
+- `--request-million-rate` (default `1.0`)
+- `--ram-reference-gb` (default `4.0`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac monitoring cost-intelligence --deployment-id 4 --format table
+```
+
+### `monitoring detect-drift`
+Drift detection with profiles, thresholds, history, and watch mode.
+
+Options:
+- `--model-version-id` (prompted)
+- `--profile, -p` (`sensitive|balanced|conservative`, default `balanced`)
+- `--kl-threshold` (override)
+- `--wasserstein-threshold` (override)
+- `--ks-threshold` (override)
+- `--chi-square-threshold` (override)
+- `--explain/--no-explain` (default explain)
+- `--history` (show previous scans)
+- `--history-limit` (default `5`)
+- `--watch, -w`
+- `--interval, -i` (default `30`)
+- `--iterations` (`0` = infinite)
+
+Example:
+```bash
+aiac monitoring detect-drift --model-version-id 4 --profile balanced --history
+```
+
+### `monitoring samples`
+Upload/validate sample data for monitoring and drift.
+
+Options:
+- `--model-version-id` (prompted)
+- `--data-samples` (JSON array string)
+- `--samples-file` (JSON or CSV file)
+- `--csv-file` (CSV file)
+- `--format, -f` (`auto|json|csv`, for `--samples-file`, default `auto`)
+- `--chunk-size` (`0` single request)
+- `--dry-run` (validate only)
+- `--preview` (show first N samples, default `3`)
+- `--strict-shape` (require same vector dimension)
+
+Examples:
+```bash
+aiac monitoring samples --model-version-id 4 --data-samples "[0.1, 0.2, 0.3]"
+aiac monitoring samples --model-version-id 4 --samples-file samples.json
+aiac monitoring samples --model-version-id 4 --csv-file samples.csv --chunk-size 100
+```
+
+## governance
+
+### `governance create-policy`
+Create policy. If `--rules` is omitted, CLI prompts interactive metadata template (`deployment|monitoring|both`) and rules.
+
+Arguments:
+- `name` (required)
+- `policy_type` (required)
+
+Options:
+- `--description, -d` (optional text)
+- `--rules, -r` (JSON object string)
+
+Examples:
+```bash
+aiac governance create-policy model deployment
+aiac governance create-policy model deployment -d "prod policy" -r '{"max_latency_ms": 500}'
+```
+
+### `governance list-policies`
+List policies with owner, creator, created_at, description, and rules preview.
+
+Example:
+```bash
+aiac governance list-policies
+```
+
+### `governance delete-policy`
+Delete policy by id.
+
+Arguments:
+- `policy_id` (required)
+
+Example:
+```bash
+aiac governance delete-policy 3
+```
+
+### `governance apply-policy`
+Apply policy to deployment.
+
+Arguments:
+- `policy_id` (required)
+- `deployment_id` (optional; if omitted, prompt asks)
+
+Examples:
+```bash
+aiac governance apply-policy 3 14
+aiac governance apply-policy 3
+```
+
+### `governance view-violations`
+View policy violations.
+
+Example:
+```bash
 aiac governance view-violations
 ```
 
-### CLI Configuration
+### `governance metrics`
+Show aggregated violation metrics.
 
-The AIAC CLI automatically connects to your running Django server. Make sure:
-
-- ✅ **Server is running** on the expected port (default: 8000)
-- ✅ **Virtual environment** is activated in CLI terminal
-- ✅ **Authentication** is completed before accessing protected endpoints
-- ✅ **Network connectivity** between CLI and server (if running on different machines)
-
-### Troubleshooting
-
-**Common issues:**
-
+Example:
 ```bash
-# If CLI can't connect to server
-# Make sure server is running on correct port
-python manage.py runserver 8000
-
-# If authentication fails
-# Check your login credentials
-aiac auth login
-
-# If commands show connection errors
-# Verify server is accessible
-curl http://127.0.0.1:8000/api/schema/
+aiac governance metrics
 ```
 
-### Interactive Prompts
+### `governance run-policy-engine`
+Trigger policy engine execution immediately.
 
-Most commands use interactive prompts for required parameters:
-
+Example:
 ```bash
-aiac deployment create-project-deployment
-# Will prompt for: owner, project_name, description
-
-aiac deployment deploy-model-version
-# Will prompt for: user_id, model_version_id, port
+aiac governance run-policy-engine
 ```
 
-### Output Formatting
+### `governance debug-policy-engine`
+Debug why violations are/aren't generated for a policy.
 
-Commands use **Rich** library for beautiful terminal output:
-- 📊 **Tables** for listing data
-- 🎨 **Colored output** for status and warnings
-- 📋 **Structured information** display
-- ⚠️ **Clear error messages** and success confirmations
+Options:
+- `--policy, -p` (required policy id)
+- `--deployment, -d` (optional deployment filter)
+- `--limit, -l` (default `50`, clamped `1..200`)
 
-### Available Commands Reference
-
-#### Authentication Commands
+Example:
 ```bash
-aiac auth register    # Register a new user account
-aiac auth login       # Login to get access tokens
-aiac auth logout      # Logout and invalidate tokens
+aiac governance debug-policy-engine --policy 3 --deployment 14 --limit 100
 ```
 
-#### Deployment Commands
+### `governance policy-insights`
+Advanced coverage/risk insights with recommendations.
+
+Options:
+- `--policy, -p` (optional)
+- `--days, -d` (default `7`, clamped `1..90`)
+- `--format, -f` (`table|csv`, default `table`)
+
+Examples:
 ```bash
-# Project Management
-aiac deployment create-project-deployment    # Create a new project
-aiac deployment list-projects               # List all projects
-aiac deployment delete-project              # Delete a project
-
-# Model Version Management
-aiac deployment create-model-version        # Create a new model version
-aiac deployment list-model-versions         # List all model versions
-aiac deployment delete-model-version        # Delete a model version
-
-# Deployment Operations
-aiac deployment deploy-model-version        # Deploy a model version
-aiac deployment redeploy-model              # Redeploy an existing deployment
-aiac deployment stop-deployment             # Stop a running deployment
-aiac deployment delete-deployment           # Delete a deployment
-aiac deployment list-deployments            # List all deployments
-aiac deployment get-deployment-details      # Get detailed deployment info
+aiac governance policy-insights
+aiac governance policy-insights --policy 3 --days 30 --format csv
 ```
 
-#### Monitoring Commands
+### `governance alert-logs`
+View governance alert logs.
+
+Example:
 ```bash
-aiac monitoring deploy-stats                # View deployment statistics
-aiac monitoring deploy-records              # View deployment monitoring records
-aiac monitoring alert                       # View deployment alerts
-aiac monitoring resolve-alert               # Resolve a specific alert
-aiac monitoring detect-drift                # Check for data drift on model version
-aiac monitoring samples                     # Post samples for drift analysis
+aiac governance alert-logs
 ```
 
-#### Governance Commands
+## Notes
+
+- Most required values are prompted interactively if omitted.
+- Booleans can be toggled with `--flag/--no-flag` for Typer bool options.
+- For the most accurate local signature at any time:
+
 ```bash
-aiac governance create-policy               # Create a new governance policy
-aiac governance list-policies               # List all governance policies
-aiac governance delete-policy               # Delete a governance policy
-aiac governance apply-policy                # Apply a policy to a deployment
-aiac governance view-violations             # View policy violations
-aiac governance metrics                     # View violation metrics
-aiac governance alert-logs                  # View alert logs for violations
+aiac <group> <command> --help
 ```
+
+

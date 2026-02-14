@@ -9,10 +9,25 @@ class ProjetSerializer(serializers.ModelSerializer):
 
 
 class ModelVersionSerializer(serializers.ModelSerializer):
-    projet = ProjetSerializer(read_only=True)
+    projet = serializers.PrimaryKeyRelatedField(queryset=Projet.objects.all(), required=False)
+    project_id = serializers.IntegerField(write_only=True, required=False)
+    project = serializers.IntegerField(write_only=True, required=False)
+
     class Meta:
         model = ModelVersion
-        fields = ['id', 'projet', 'description', 'field_file', 'created_at', 'updated_at', 'deployed']
+        fields = ['id', 'projet', 'project_id', 'project', 'description', 'field_file', 'created_at', 'updated_at', 'deployed']
+
+    def validate(self, attrs):
+        if not attrs.get("projet") and not attrs.get("project_id") and not attrs.get("project"):
+            raise serializers.ValidationError({"projet": "This field is required."})
+        return attrs
+
+    def create(self, validated_data):
+        if not validated_data.get("projet"):
+            project_id = validated_data.pop("project_id", None) or validated_data.pop("project", None)
+            if project_id is not None:
+                validated_data["projet"] = Projet.objects.get(pk=project_id)
+        return super().create(validated_data)
 
     def validate_field_file(self, value):
         if not value.name.endswith(('.pkl', '.joblib', '.h5', '.pt')):
@@ -23,6 +38,7 @@ class ModelVersionSerializer(serializers.ModelSerializer):
     
 class DeploymentSerializer(serializers.ModelSerializer):
     #model_version_info = ModelVersionSerializer(source="model_version", read_only=True)
+    runtime_urls = serializers.SerializerMethodField()
 
     class Meta:
         model = Deployment
@@ -34,6 +50,7 @@ class DeploymentSerializer(serializers.ModelSerializer):
             "deployed_at",
             "port",
             "endpoint_url",
+            "runtime_urls",
             "status",
             "logs",
         ]
@@ -53,5 +70,23 @@ class DeploymentSerializer(serializers.ModelSerializer):
         if Deployment.objects.filter(port=value, status="ACTIVE").exists():
             raise serializers.ValidationError("This port is already used by another active deployment.")
         return value
+
+    def get_runtime_urls(self, obj):
+        if obj and obj.port:
+            base_url = f"http://127.0.0.1:{obj.port}"
+        elif obj and obj.endpoint_url:
+            base_url = str(obj.endpoint_url).replace("/predict", "")
+        else:
+            base_url = ""
+        if not base_url:
+            return {}
+        return {
+            "base_url": base_url,
+            "ui_page": f"{base_url}/ui",
+            "ui_docs": f"{base_url}/docs",
+            "ui_redoc": f"{base_url}/redoc",
+            "health": f"{base_url}/health",
+            "predict": f"{base_url}/predict",
+        }
 
        

@@ -1,16 +1,49 @@
 from celery import shared_task
 from monitoring.models import Samples
-from monitoring.models import DeploymentMonitoringRecord , DataDrift 
+from monitoring.models import DeploymentMonitoringRecord, DeploymentStats, DeploymentAlert, DataDrift
 import requests
 import docker
-from deployment.models import ModelVersion
+import time
+from deployment.models import ModelVersion, Deployment
 import numpy as np
-from drift_utils import calculate_kl_divergence, calculate_wasserstein_distance, calculate_ks_statistic, calculate_chi_square
+# Support both package and direct module execution contexts.
+try:
+    from monitoring.drift_utils import (
+        calculate_kl_divergence,
+        calculate_wasserstein_distance,
+        calculate_ks_statistic,
+        calculate_chi_square,
+    )
+except ModuleNotFoundError:
+    from drift_utils import (
+        calculate_kl_divergence,
+        calculate_wasserstein_distance,
+        calculate_ks_statistic,
+        calculate_chi_square,
+    )
 from governance.utils import LogAction
 
-
 @shared_task(bind=True)
-def CollectAndStoreMetrics(deployment_id):
+def start_monitor_agent(self, deployment_id, interval_seconds=30):
+    """
+    Trigger a metrics collection run for a deployment.
+    This is a lightweight starter task invoked after deployment.
+    """
+    try:
+        return CollectAndStoreMetrics.delay(
+            deployment_id,
+            schedule_next=True,
+            interval_seconds=interval_seconds,
+        )
+    except Exception:
+        # In fallback mode (no worker), run one synchronous collection only.
+        return CollectAndStoreMetrics.apply(
+            args=[deployment_id],
+            kwargs={"schedule_next": False, "interval_seconds": interval_seconds},
+        )
+
+@shared_task
+def CollectAndStoreMetrics(deployment_id, schedule_next=False, interval_seconds=30):
     """
     Docstring for CollectAndStoreMetrics
     
@@ -23,52 +56,134 @@ def CollectAndStoreMetrics(deployment_id):
         deploy = Deployment.objects.get(id=deployment_id)
     except Deployment.DoesNotExist:
         raise ValueError("This deployment does not exist")
-    
-    URL = f"http://localhost:{deploy.port}/metrics"
-    response = requests.get(URL)
-    
-    if response.status_code == 200:
-        metrics = response.json()
-        count_request = 1
-        count_error = 0
-    else:
-        raise ValueError("Failed to fetch metrics")
-    
-    DeploymentMonitoringRecord.objects.create(
-        deployment=deploy,
-        cpu_usage=metrics['cpu_usage'],
-        ram_usage=metrics['ram_usage'],
-        latency_ms=metrics['latency_ms'],
-        request_count=count_request,
-        error_count=count_error,
-        created_at=metrics['timestamp']
-    )
-    
+
+    count_request = 1
+    count_error = 0
+    latency_ms = 0.0
+
+    def _extract_features():
+        sample = deploy.model_version.sample_data
+        if isinstance(sample, dict):
+            value = sample.get("features")
+            return value if isinstance(value, list) else None
+        if isinstance(sample, list) and sample:
+            first = sample[0]
+            if isinstance(first, list):
+                return first
+            if isinstance(first, (int, float)):
+                return sample
+        return None
+
+    features = _extract_features()
+    predict_url = f"http://127.0.0.1:{deploy.port}/predict"
+    health_url = f"http://127.0.0.1:{deploy.port}/health"
+    try:
+        start = time.monotonic()
+        if features:
+            resp = requests.post(predict_url, json={"features": features}, timeout=5)
+        else:
+            resp = requests.get(health_url, timeout=3)
+        end = time.monotonic()
+        latency_ms = (end - start) * 1000.0
+        if resp.status_code >= 400:
+            count_error = 1
+    except Exception:
+        count_error = 1
+
+    cpu_usage = 0.0
+    ram_usage = 0.0
     try:
         container = client.containers.get(deploy.docker_container_id)
         stats = container.stats(stream=False)
 
-        cpu_usage = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-        ram_usage = stats["memory_stats"]["usage"]
+        # Convert to practical percentages/MB for display.
+        cpu_total = float(stats["cpu_stats"]["cpu_usage"].get("total_usage", 0.0))
+        pre_cpu_total = float(stats["precpu_stats"]["cpu_usage"].get("total_usage", 0.0))
+        system_total = float(stats["cpu_stats"].get("system_cpu_usage", 0.0))
+        pre_system_total = float(stats["precpu_stats"].get("system_cpu_usage", 0.0))
+        cpu_delta = cpu_total - pre_cpu_total
+        system_delta = system_total - pre_system_total
+        cpu_count = max(len(stats["cpu_stats"].get("cpu_usage", {}).get("percpu_usage", []) or [1]), 1)
+        if system_delta > 0 and cpu_delta > 0:
+            cpu_usage = (cpu_delta / system_delta) * cpu_count * 100.0
 
-        payload = {
-            "deployment_id": deploy.id,
-            "cpu_usage": cpu_usage,
-            "ram_usage": ram_usage,
-            "latency_ms": metrics['latency_ms'],
-            "request_count": count_request,
-            "error_count": count_error,
-        }
+        ram_bytes = float(stats.get("memory_stats", {}).get("usage", 0.0))
+        ram_usage = ram_bytes / (1024.0 * 1024.0)
+    except Exception:
+        # Keep defaults; monitoring should still persist heartbeat records.
+        pass
 
-        
+    payload = {
+        "deployment_id": deploy.id,
+        "cpu_usage": cpu_usage,
+        "ram_usage": ram_usage,
+        "latency_ms": latency_ms,
+        "request_count": count_request,
+        "error_count": count_error,
+    }
 
-        requests.post(f"http://localhost:{deploy.port}/alerts/", json=payload)
+    DeploymentMonitoringRecord.objects.create(
+        deployment=deploy,
+        cpu_usage=payload["cpu_usage"],
+        ram_usage=payload["ram_usage"],
+        latency_ms=payload["latency_ms"],
+        request_count=payload["request_count"],
+        error_count=payload["error_count"],
+    )
 
-    except Exception as e:
-        print("Error:", e)
+    stats, _ = DeploymentStats.objects.get_or_create(
+        deployment=deploy,
+        defaults={
+            "cpu_usage": payload["cpu_usage"],
+            "ram_usage": payload["ram_usage"],
+            "latency_ms": payload["latency_ms"],
+            "request_count": payload["request_count"],
+            "error_count": payload["error_count"],
+        },
+    )
+    stats.cpu_usage = payload["cpu_usage"]
+    stats.ram_usage = payload["ram_usage"]
+    stats.latency_ms = payload["latency_ms"]
+    stats.request_count = payload["request_count"]
+    stats.error_count = payload["error_count"]
+    stats.save()
+
+    # Generate alerts directly from collected stats (same thresholds as API view).
+    def _create_alert_once(alert_type: str, message: str):
+        existing = DeploymentAlert.objects.filter(
+            deployment=deploy,
+            alert_type=alert_type,
+            resolved=False,
+        ).exists()
+        if not existing:
+            DeploymentAlert.objects.create(
+                deployment=deploy,
+                alert_type=alert_type,
+                message=message,
+            )
+
+    if stats.cpu_usage > 80:
+        _create_alert_once("high_cpu", f"CPU usage reached {stats.cpu_usage}%")
+    if stats.ram_usage > 2000:
+        _create_alert_once("high_ram", f"RAM usage reached {stats.ram_usage} MB")
+    if stats.latency_ms > 1000:
+        _create_alert_once("latency_spike", f"Latency reached {stats.latency_ms} ms")
+    if stats.error_count > 5:
+        _create_alert_once("errors_spike", f"Errors detected: {stats.error_count}")
+
+    if schedule_next and deploy.status == Deployment.StatusChoices.ACTIVE:
+        try:
+            CollectAndStoreMetrics.apply_async(
+                args=[deployment_id],
+                kwargs={"schedule_next": True, "interval_seconds": interval_seconds},
+                countdown=interval_seconds,
+            )
+        except Exception:
+            # If queueing the next tick fails, keep current metrics and exit gracefully.
+            pass
 
     
-@shared_task(bind=True)
+@shared_task
 def detect_drift(model_version_id):
     """
     Docstring for detect_drift
@@ -177,11 +292,12 @@ def detect_drift(model_version_id):
       
       LogAction(
             user=deployment.user,
-            action="DRIFT DETECTED",
-            description=f"Data drift detected for model version {model_version.id} in deployment {deployment.name}.",
+            action="DRIFT_DETECTED",
+            description=f"Data drift detected for model version {model_version.id} in deployment {deployment.id}.",
             metadata=meta_data,
             service="monitoring",
-            deployment=deployment
+            deployment=deployment,
+            severity="high",
         )
 
     if (kl_divergence > Psi_threshold or

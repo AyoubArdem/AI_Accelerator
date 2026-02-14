@@ -5,7 +5,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE","AI_Accelerator.settings")
 
 app = Celery('AI_Accelerator')
 
-app.config_from_object('django.confg:settings',namespace='CELERY')
+app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.autodiscover_tasks()
 

@@ -20,3 +20,4 @@ def send_activation_email(user, request):
         [user.email],
         fail_silently=False,
     )
+    return activation_link
