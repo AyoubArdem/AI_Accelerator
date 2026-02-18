@@ -342,6 +342,7 @@ aiac deployment stop-deployment             # Stop a running deployment
 aiac deployment delete-deployment           # Delete a deployment
 aiac deployment list-deployments            # List all deployments
 aiac deployment get-deployment-details      # Get detailed deployment info
+aiac deployment explain-decision            # Explainable decision with refusal checks
 ```
 
 ### Monitoring Commands
@@ -355,9 +356,26 @@ aiac monitoring alert                       # View deployment alerts
 # Alert Management
 aiac monitoring resolve-alert               # Resolve a specific alert
 
+# Advanced Monitoring Services
+aiac monitoring health-report               # Health score, trends, recommendations
+aiac monitoring cost-intelligence           # Cost, efficiency, budget variance, scenarios
+
 # Data Drift Detection
 aiac monitoring detect-drift                # Check for data drift on model version
 aiac monitoring samples                     # Post samples for drift analysis
+```
+
+High-level cost intelligence example:
+
+```bash
+aiac monitoring cost-intelligence \
+  --deployment-id 4 \
+  --window 300 \
+  --budget 250 \
+  --target-cpu-utilization 65 \
+  --target-ram-utilization 70 \
+  --scenarios \
+  --format table
 ```
 
 ### Governance Commands

@@ -670,6 +670,10 @@ def cost_intelligence(
     gb_ram_hour_rate: float = typer.Option(0.01, help="Cost per GB RAM-hour."),
     request_million_rate: float = typer.Option(1.0, help="Cost per million requests."),
     ram_reference_gb: float = typer.Option(4.0, help="Reference RAM size when RAM is reported as percent."),
+    budget_monthly: float = typer.Option(None, "--budget", help="Optional monthly budget cap for variance analysis."),
+    target_cpu_utilization: float = typer.Option(65.0, help="Target CPU utilization percent for efficiency scoring."),
+    target_ram_utilization: float = typer.Option(70.0, help="Target RAM utilization percent for efficiency scoring."),
+    include_scenarios: bool = typer.Option(True, "--scenarios/--no-scenarios", help="Include projected cost scenarios."),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
 ):
     client = AIACClient(base_path="monitoring")
@@ -686,7 +690,12 @@ def cost_intelligence(
             f"&gb_ram_hour_rate={gb_ram_hour_rate}"
             f"&request_million_rate={request_million_rate}"
             f"&ram_reference_gb={ram_reference_gb}"
+            f"&target_cpu_utilization={target_cpu_utilization}"
+            f"&target_ram_utilization={target_ram_utilization}"
+            f"&include_scenarios={str(include_scenarios).lower()}"
         )
+        if budget_monthly is not None:
+            endpoint += f"&budget_monthly={budget_monthly}"
         response = client.api_request(endpoint, method="GET")
         payload = response.json()
 
@@ -699,11 +708,15 @@ def cost_intelligence(
         summary.add_column("Status", style="yellow")
         summary.add_column("Window", style="blue")
         summary.add_column("Observed Hours", style="green")
+        summary.add_column("Annual Cost", style="magenta")
+        summary.add_column("Efficiency", style="yellow")
         summary.add_row(
             str(payload.get("deployment_id", deployment_id)),
             str(payload.get("status", "N/A")),
             str(payload.get("window_records", "N/A")),
             str(payload.get("observed_hours", "N/A")),
+            str(payload.get("annual_estimated_cost", "N/A")),
+            str(payload.get("efficiency", {}).get("score", "N/A")),
         )
         console.print(summary)
 
@@ -711,10 +724,12 @@ def cost_intelligence(
         util_table = Table(title="Utilization")
         util_table.add_column("Avg CPU %")
         util_table.add_column("Avg RAM GB")
+        util_table.add_column("RAM Util %")
         util_table.add_column("Requests/Hour")
         util_table.add_row(
             str(util.get("avg_cpu_pct", 0)),
             str(util.get("avg_ram_gb", 0)),
+            str(payload.get("efficiency", {}).get("current_ram_utilization_pct", 0)),
             str(util.get("requests_per_hour", 0)),
         )
         console.print(util_table)
@@ -725,13 +740,58 @@ def cost_intelligence(
         cost_table.add_column("RAM Cost", style="magenta")
         cost_table.add_column("Request Cost", style="yellow")
         cost_table.add_column("Total", style="green")
+        cost_table.add_column("CPU %", style="cyan")
+        cost_table.add_column("RAM %", style="magenta")
+        cost_table.add_column("Req %", style="yellow")
         cost_table.add_row(
             str(cost.get("cpu_cost", 0)),
             str(cost.get("ram_cost", 0)),
             str(cost.get("request_cost", 0)),
             str(cost.get("total_estimated_cost", 0)),
+            str(cost.get("cpu_share_pct", 0)),
+            str(cost.get("ram_share_pct", 0)),
+            str(cost.get("request_share_pct", 0)),
         )
         console.print(cost_table)
+
+        efficiency = payload.get("efficiency", {})
+        typer.echo(
+            "Efficiency: "
+            f"score={efficiency.get('score')} "
+            f"class={efficiency.get('classification')} "
+            f"target_cpu={efficiency.get('target_cpu_utilization')} "
+            f"target_ram={efficiency.get('target_ram_utilization')}"
+        )
+
+        budget = payload.get("budget")
+        if budget:
+            typer.echo(
+                "Budget: "
+                f"monthly={budget.get('monthly_budget')} "
+                f"variance={budget.get('variance')} "
+                f"variance_pct={budget.get('variance_pct')} "
+                f"within_budget={budget.get('within_budget')}"
+            )
+
+        risks = payload.get("risks", [])
+        if risks:
+            typer.echo("Risk flags:")
+            for risk in risks:
+                typer.echo(f"- {risk}")
+
+        scenarios = payload.get("scenarios", [])
+        if scenarios:
+            scenario_table = Table(title="Scenario Projections")
+            scenario_table.add_column("Scenario", style="cyan")
+            scenario_table.add_column("Monthly Cost", style="green")
+            scenario_table.add_column("Delta vs Current", style="yellow")
+            for row in scenarios:
+                scenario_table.add_row(
+                    str(row.get("name", "")),
+                    str(row.get("estimated_monthly_cost", "")),
+                    str(row.get("delta_vs_current", "")),
+                )
+            console.print(scenario_table)
 
         optimization = payload.get("optimization", {})
         typer.echo(f"Estimated savings potential: {optimization.get('estimated_savings_potential', 0)} / month")

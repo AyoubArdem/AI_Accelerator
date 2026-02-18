@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
 import os, json, logging, time, base64
 from io import BytesIO
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import numpy as np
 import joblib
 
@@ -22,6 +22,13 @@ model_info = {}
 # Request schema
 class PredictRequest(BaseModel):
     features: list
+
+
+class DecisionRequest(BaseModel):
+    features: list
+    min_confidence: Optional[float] = None
+    min_margin: Optional[float] = None
+    blocked_labels: Optional[List[str]] = None
 
 
 class PredictTextRequest(BaseModel):
@@ -114,6 +121,135 @@ def _infer_from_array(arr: np.ndarray):
 
     preds = model.predict(arr)
     return {"prediction": _to_jsonable(preds)}
+
+
+def _extract_top_probabilities(prob_row: list, top_k: int = 3) -> list:
+    indexed = [(idx, float(val)) for idx, val in enumerate(prob_row)]
+    indexed.sort(key=lambda x: x[1], reverse=True)
+    top = indexed[: max(1, top_k)]
+    return [{"class_index": idx, "probability": round(val, 6)} for idx, val in top]
+
+
+def _linear_feature_explanation(arr: np.ndarray, pred_index: int, top_k: int = 5) -> list:
+    if not hasattr(model, "coef_"):
+        return []
+    try:
+        coef = np.array(model.coef_)
+        x = arr[0].astype(float)
+        if coef.ndim == 1:
+            weights = coef
+        else:
+            pred_idx = max(0, min(int(pred_index), coef.shape[0] - 1))
+            weights = coef[pred_idx]
+        if weights.shape[0] != x.shape[0]:
+            return []
+        contribs = x * weights
+        rank = np.argsort(np.abs(contribs))[::-1][: max(1, top_k)]
+        rows = []
+        for i in rank:
+            rows.append(
+                {
+                    "feature_index": int(i),
+                    "feature_value": float(x[i]),
+                    "weight": float(weights[i]),
+                    "contribution": float(contribs[i]),
+                }
+            )
+        return rows
+    except Exception:
+        return []
+
+
+def _feature_importance_explanation(arr: np.ndarray, top_k: int = 5) -> list:
+    if not hasattr(model, "feature_importances_"):
+        return []
+    try:
+        importances = np.array(model.feature_importances_, dtype=float)
+        x = arr[0].astype(float)
+        if importances.shape[0] != x.shape[0]:
+            return []
+        weighted = np.abs(x) * importances
+        rank = np.argsort(weighted)[::-1][: max(1, top_k)]
+        rows = []
+        for i in rank:
+            rows.append(
+                {
+                    "feature_index": int(i),
+                    "feature_value": float(x[i]),
+                    "importance": float(importances[i]),
+                    "weighted_importance": float(weighted[i]),
+                }
+            )
+        return rows
+    except Exception:
+        return []
+
+
+def _decide_with_refusal(arr: np.ndarray, min_confidence: Optional[float], min_margin: Optional[float], blocked_labels: Optional[List[str]]) -> Dict[str, Any]:
+    raw = _infer_from_array(arr)
+    preds = raw.get("prediction")
+    prediction = None
+    if isinstance(preds, list) and preds:
+        prediction = preds[0]
+    else:
+        prediction = preds
+
+    probabilities = raw.get("probabilities")
+    confidence = None
+    margin = None
+    top_probs = []
+    predicted_class_index = 0
+    if isinstance(probabilities, list) and probabilities and isinstance(probabilities[0], list):
+        prob_row = [float(v) for v in probabilities[0]]
+        if prob_row:
+            sorted_vals = sorted(prob_row, reverse=True)
+            confidence = float(sorted_vals[0])
+            margin = float(sorted_vals[0] - sorted_vals[1]) if len(sorted_vals) > 1 else 1.0
+            predicted_class_index = int(np.argmax(prob_row))
+            top_probs = _extract_top_probabilities(prob_row, top_k=3)
+
+    blocked = {str(x) for x in (blocked_labels or [])}
+    reasons = []
+    decision = "approved"
+    refusal_policy = {
+        "min_confidence": 0.6 if min_confidence is None else float(min_confidence),
+        "min_margin": 0.1 if min_margin is None else float(min_margin),
+        "blocked_labels": sorted(list(blocked)),
+    }
+
+    if confidence is not None and confidence < refusal_policy["min_confidence"]:
+        decision = "refused"
+        reasons.append(
+            f"Low confidence: {confidence:.4f} < {refusal_policy['min_confidence']:.4f}"
+        )
+    if margin is not None and margin < refusal_policy["min_margin"]:
+        decision = "refused"
+        reasons.append(
+            f"Ambiguous output: margin {margin:.4f} < {refusal_policy['min_margin']:.4f}"
+        )
+    if str(prediction) in blocked:
+        decision = "refused"
+        reasons.append(f"Blocked label predicted: {prediction}")
+
+    if not reasons:
+        reasons.append("Decision approved by confidence/safety checks.")
+
+    explanation = {
+        "confidence": confidence,
+        "margin": margin,
+        "top_probabilities": top_probs,
+        "linear_feature_contributions": _linear_feature_explanation(arr, predicted_class_index),
+        "feature_importance_summary": _feature_importance_explanation(arr),
+    }
+
+    return {
+        "decision": decision,
+        "prediction": prediction,
+        "reasons": reasons,
+        "refusal_policy": refusal_policy,
+        "explanation": explanation,
+        "raw_output": raw,
+    }
 
 
 def _infer_from_text(text: str):
@@ -437,6 +573,7 @@ def ui_page():
         <div class="controls">
           <button class="ghost" onclick="setTextTemplate()">Text Template</button>
           <button class="ghost" onclick="setImageTemplate()">Image Template</button>
+          <button class="ghost" onclick="setDecisionTemplate()">Decision Template</button>
           <input id="imageFile" type="file" accept="image/*" />
           <button class="ghost" onclick="loadImageToPayload()">Load Image -> Payload</button>
         </div>
@@ -492,6 +629,18 @@ def ui_page():
   "image_base64": "",
   "target_size": [224, 224],
   "normalize": true
+}`;
+    }
+
+    function setDecisionTemplate() {
+      document.getElementById('method').value = 'POST';
+      document.getElementById('path').value = '/predict-decision';
+      document.getElementById('payload').value =
+`{
+  "features": [0.1, 0.2, 0.3],
+  "min_confidence": 0.6,
+  "min_margin": 0.1,
+  "blocked_labels": ["denied"]
 }`;
     }
 
@@ -607,12 +756,13 @@ def redoc_fallback():
     <div><a href="/openapi.json" target="_blank">OpenAPI Spec (/openapi.json)</a></div>
   </div>
 
-  <div class="card">
-    <h3>Key Endpoints</h3>
-    <div><code>GET /health</code> - Runtime health and model info</div>
-    <div><code>POST /predict</code> - Prediction endpoint</div>
-    <h4>Example payload</h4>
-    <pre>{
+    <div class="card">
+      <h3>Key Endpoints</h3>
+      <div><code>GET /health</code> - Runtime health and model info</div>
+      <div><code>POST /predict</code> - Prediction endpoint</div>
+      <div><code>POST /predict-decision</code> - Explainable decision endpoint with refusal checks</div>
+      <h4>Example payload</h4>
+      <pre>{
   "features": [0.1, 0.2, 0.3]
 }</pre>
   </div>
@@ -636,12 +786,14 @@ def capabilities():
         "framework": model_info.get("framework"),
         "supported_endpoints": [
             "POST /predict (tabular numeric features)",
+            "POST /predict-decision (explainable decision with refusal checks)",
             "POST /predict-text (text models/pipelines)",
             "POST /predict-image (computer vision image_base64)",
         ],
         "notes": [
             "predict-text is best with sklearn text pipelines.",
             "predict-image expects base64-encoded image bytes.",
+            "predict-decision supports confidence-based refusal for safer outputs.",
         ],
     }
 
@@ -657,6 +809,24 @@ def predict(req: PredictRequest):
 
     except Exception as e:
         logger.exception("Prediction error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/predict-decision")
+def predict_decision(req: DecisionRequest):
+    global model
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    try:
+        arr = np.array(req.features, dtype=np.float32).reshape(1, -1)
+        return _decide_with_refusal(
+            arr=arr,
+            min_confidence=req.min_confidence,
+            min_margin=req.min_margin,
+            blocked_labels=req.blocked_labels,
+        )
+    except Exception as e:
+        logger.exception("Decision inference error")
         raise HTTPException(status_code=500, detail=str(e))
 
 

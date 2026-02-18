@@ -10,6 +10,7 @@ from aiac.user.auth import auth_app
 from aiac.deployment.commands import api_app_deployment
 from aiac.monitoring.commands import monitoring_api_app
 from aiac.governance.commands import governance_api_app
+from aiac.console import print_aiac_banner
 
 # Create the main CLI app
 app = typer.Typer(
@@ -23,6 +24,16 @@ app.add_typer(auth_app, name="auth", help="Authentication commands")
 app.add_typer(api_app_deployment, name="deployment", help="Deployment management commands")
 app.add_typer(monitoring_api_app, name="monitoring", help="Monitoring and analytics commands")
 app.add_typer(governance_api_app, name="governance", help="Governance and policy commands")
+
+
+@app.callback(invoke_without_command=True)
+def root(ctx: typer.Context):
+    """Show AIAC banner when CLI is invoked without a subcommand."""
+    if ctx.invoked_subcommand is None:
+        print_aiac_banner()
+        typer.echo(ctx.get_help())
+        raise typer.Exit()
+
 
 def main():
     app()

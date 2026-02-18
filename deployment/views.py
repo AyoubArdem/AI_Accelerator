@@ -38,6 +38,7 @@ def _runtime_urls_for_deployment(deployment: Deployment) -> dict:
         "ui_redoc": f"{base_url}/redoc",
         "health": f"{base_url}/health",
         "predict": f"{base_url}/predict",
+        "predict_decision": f"{base_url}/predict-decision",
     }
 
 

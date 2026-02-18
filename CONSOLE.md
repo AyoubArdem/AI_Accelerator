@@ -274,6 +274,42 @@ Example:
 aiac deployment traffic-shadow --deployment-id 20 --candidate 3 --samples 300 --format json
 ```
 
+### `deployment explain-decision`
+Run explainable decision inference with configurable refusal checks.
+
+Options:
+- `--deployment-id` (prompted)
+- `--features, -x` (JSON numeric feature array)
+- `--min-confidence` (optional refusal threshold)
+- `--min-margin` (optional refusal threshold)
+- `--blocked-labels` (comma-separated labels to refuse)
+- `--fallback/--no-fallback` (default `--fallback`; use `/predict` if `/predict-decision` is missing)
+- `--timeout` (request timeout seconds, default `10`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac deployment explain-decision --deployment-id 20 --features "[0.1, 0.2, 0.3]" --min-confidence 0.7 --min-margin 0.15 --blocked-labels "denied,blocked" --format table
+```
+
+Result interpretation:
+- `decision=approved`: runtime policy checks passed.
+- `decision=refused`: runtime policy checks rejected the request.
+- `decision=approved_with_fallback`: `/predict-decision` was unavailable, so CLI used `/predict`; refusal checks were **not** enforced.
+- `confidence=None` and `margin=None`: model/runtime did not provide probability scores, so confidence-margin checks could not be evaluated.
+
+Output includes:
+- Decision summary table
+- Interpretation block (plain-language explanation)
+- Reasons list
+- Top probabilities (if available)
+- Linear feature contributions and contribution summary (if available)
+
+Troubleshooting:
+- If you see `runtime request failed: 404` or fallback messages, your deployment runtime is likely outdated. Redeploy the model to enable `/predict-decision`.
+- If compliance/safety requires strict refusal enforcement, run with `--no-fallback` so the command fails instead of using `/predict`.
+- If `confidence`/`margin` remain `None` after redeploy, your model may not expose probabilities; use models/pipelines with `predict_proba` for confidence-based refusal checks.
+
 ## monitoring
 
 ### `monitoring deploy-stats`
@@ -354,7 +390,7 @@ aiac monitoring health-report --deployment-id 4 --window 100
 ```
 
 ### `monitoring cost-intelligence`
-Estimated monthly cost + optimization recommendations.
+Advanced FinOps report with monthly/annual cost estimation, efficiency scoring, budget variance, risk flags, and scenario projections.
 
 Options:
 - `--deployment-id` (prompted)
@@ -363,11 +399,15 @@ Options:
 - `--gb-ram-hour-rate` (default `0.01`)
 - `--request-million-rate` (default `1.0`)
 - `--ram-reference-gb` (default `4.0`)
+- `--budget` (optional monthly budget for variance analysis)
+- `--target-cpu-utilization` (default `65.0`)
+- `--target-ram-utilization` (default `70.0`)
+- `--scenarios/--no-scenarios` (default `--scenarios`)
 - `--format, -f` (`table|json`, default `table`)
 
 Example:
 ```bash
-aiac monitoring cost-intelligence --deployment-id 4 --format table
+aiac monitoring cost-intelligence --deployment-id 4 --window 300 --budget 250 --target-cpu-utilization 65 --target-ram-utilization 70 --scenarios --format table
 ```
 
 ### `monitoring detect-drift`

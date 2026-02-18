@@ -5,6 +5,7 @@ import platform
 import time
 import socket
 import json
+import requests
 import typer
 from aiac.console import console, print_info, print_message, print_warning
 from rich.table import Table
@@ -114,6 +115,27 @@ def _friendly_shadow_error(error_text: str, deployment_id: int) -> str:
     return f"Failed to run traffic shadow analysis: {error_text}"
 
 
+def _friendly_explain_decision_error(error_text: str, deployment_id: int) -> str:
+    if "404" in error_text and "Deployment not found" in error_text:
+        return (
+            f"Deployment {deployment_id} was not found. "
+            "Run `deployment list-deployments` and use a valid deployment ID."
+        )
+    if "invalid features json" in error_text.lower():
+        return "Invalid features JSON. Provide a numeric JSON array, for example: \"[0.1, 0.2, 0.3]\"."
+    if "runtime endpoint not available" in error_text.lower():
+        return (
+            "Runtime endpoint is not available for this deployment. "
+            "Ensure deployment is ACTIVE and has a valid runtime URL."
+        )
+    if "runtime request failed: 404" in error_text.lower() or '"detail":"Not Found"' in error_text:
+        return (
+            "Explainable decision endpoint is not available on this deployment runtime. "
+            "Redeploy the model with the latest runtime, then retry `deployment explain-decision`."
+        )
+    return f"Failed to run explainable decision: {error_text}"
+
+
 def _suggest_model_version_ids(client: AIACClient, limit: int = 8) -> str:
     try:
         resp = client.api_request(endpoint="model-versions/", method="GET")
@@ -152,6 +174,7 @@ def _runtime_urls_from_payload(payload: dict) -> dict:
         "ui_redoc": f"{base}/redoc",
         "health": f"{base}/health",
         "predict": f"{base}/predict",
+        "predict_decision": f"{base}/predict-decision",
     }
 
 
@@ -165,6 +188,7 @@ def _print_runtime_urls(payload: dict):
     typer.echo(f"- UI ReDoc: {urls.get('ui_redoc')}")
     typer.echo(f"- Health: {urls.get('health')}")
     typer.echo(f"- Predict API: {urls.get('predict')}")
+    typer.echo(f"- Explainable Decision API: {urls.get('predict_decision')}")
 
 
 def _check_redis_and_hint(host: str, port: int):
@@ -631,6 +655,7 @@ def get_deployment_details(deployment_id: int = typer.Option(..., prompt=True, h
             table.add_row("ui_redoc", str(runtime_urls.get("ui_redoc", "")))
             table.add_row("health", str(runtime_urls.get("health", "")))
             table.add_row("predict", str(runtime_urls.get("predict", "")))
+            table.add_row("predict_decision", str(runtime_urls.get("predict_decision", "")))
         console.print(table)
     except Exception as e:
         typer.echo(f"Failed to retrieve deployment details: {str(e)}")
@@ -739,7 +764,7 @@ def deployment_services(
         urls_table = Table(title="Service URLs")
         urls_table.add_column("Service", style="cyan")
         urls_table.add_column("URL", style="green")
-        for key in ["base_url", "ui_page", "ui_docs", "ui_redoc", "health", "predict"]:
+        for key in ["base_url", "ui_page", "ui_docs", "ui_redoc", "health", "predict", "predict_decision"]:
             urls_table.add_row(key, str(services.get(key, "")))
         console.print(urls_table)
 
@@ -825,6 +850,239 @@ def deployment_traffic_shadow(
             typer.echo(f"{base_msg} {suggestions}")
             return
         typer.echo(_friendly_shadow_error(msg, deployment_id))
+
+
+@api_app_deployment.command("explain-decision")
+def deployment_explain_decision(
+    deployment_id: int = typer.Option(..., prompt=True, help="Active deployment ID to query."),
+    features: str = typer.Option(
+        "",
+        "--features",
+        "-x",
+        help='JSON numeric feature array, for example "[0.1, 0.2, 0.3]".',
+    ),
+    min_confidence: float = typer.Option(None, "--min-confidence", help="Refuse if confidence is below this value."),
+    min_margin: float = typer.Option(None, "--min-margin", help="Refuse if top-2 class margin is below this value."),
+    blocked_labels: str = typer.Option(
+        "",
+        "--blocked-labels",
+        help='Comma-separated labels to refuse, for example "denied,blocked".',
+    ),
+    fallback: bool = typer.Option(
+        True,
+        "--fallback/--no-fallback",
+        help="If /predict-decision is unavailable, fallback to /predict.",
+    ),
+    timeout: int = typer.Option(10, "--timeout", help="Runtime request timeout in seconds."),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
+):
+    """Run explainable decision endpoint with configurable refusal checks."""
+    client = AIACClient(base_path="deployment")
+    try:
+        fmt = (output_format or "table").strip().lower()
+        if fmt not in {"table", "json"}:
+            typer.echo("Invalid format. Use 'table' or 'json'.")
+            return
+
+        raw_features = features.strip()
+        if not raw_features:
+            raw_features = typer.prompt('Features JSON (example: [0.1, 0.2, 0.3])')
+        try:
+            parsed_features = json.loads(raw_features)
+        except json.JSONDecodeError as e:
+            raise Exception(f"invalid features JSON ({e.msg})")
+
+        if not isinstance(parsed_features, list) or not parsed_features:
+            raise Exception("invalid features JSON: expected a non-empty JSON array.")
+        if any(not isinstance(v, (int, float)) for v in parsed_features):
+            raise Exception("invalid features JSON: all features must be numeric.")
+
+        deployment_resp = client.api_request(endpoint=f"deployments/{deployment_id}/", method="GET")
+        deployment_payload = deployment_resp.json()
+        urls = _runtime_urls_from_payload(deployment_payload)
+        decision_url = urls.get("predict_decision")
+        if not decision_url:
+            raise Exception("runtime endpoint not available")
+
+        body = {"features": parsed_features}
+        if min_confidence is not None:
+            body["min_confidence"] = min_confidence
+        if min_margin is not None:
+            body["min_margin"] = min_margin
+        blocked = [x.strip() for x in blocked_labels.split(",") if x.strip()]
+        if blocked:
+            body["blocked_labels"] = blocked
+
+        response = requests.post(decision_url, json=body, timeout=max(1, timeout))
+        if response.status_code == 404 and fallback:
+            predict_url = urls.get("predict")
+            if not predict_url:
+                raise Exception("runtime request failed: 404 - decision endpoint missing and predict endpoint unavailable")
+            fallback_resp = requests.post(
+                predict_url,
+                json={"features": parsed_features},
+                timeout=max(1, timeout),
+            )
+            if fallback_resp.status_code >= 400:
+                raise Exception(
+                    f"runtime fallback request failed: {fallback_resp.status_code} - {fallback_resp.text}"
+                )
+            raw = fallback_resp.json()
+            fallback_prediction = raw.get("prediction")
+            if isinstance(fallback_prediction, list) and fallback_prediction:
+                fallback_prediction = fallback_prediction[0]
+
+            top_probs = []
+            probs = raw.get("probabilities")
+            if isinstance(probs, list) and probs and isinstance(probs[0], list):
+                row = [float(x) for x in probs[0]]
+                indexed = [(idx, val) for idx, val in enumerate(row)]
+                indexed.sort(key=lambda x: x[1], reverse=True)
+                for idx, val in indexed[:3]:
+                    top_probs.append({"class_index": idx, "probability": round(val, 6)})
+
+            result = {
+                "decision": "approved_with_fallback",
+                "prediction": fallback_prediction,
+                "reasons": [
+                    "Explainable decision endpoint not found on runtime.",
+                    "Fallback prediction endpoint was used.",
+                    "Refusal checks (confidence/margin/blocked labels) were not enforced.",
+                ],
+                "refusal_policy": {
+                    "mode": "fallback_predict_only",
+                    "enforced": False,
+                },
+                "explanation": {
+                    "confidence": None,
+                    "margin": None,
+                    "top_probabilities": top_probs,
+                    "linear_feature_contributions": [],
+                    "feature_importance_summary": [],
+                },
+                "raw_output": raw,
+                "fallback_used": True,
+            }
+        else:
+            if response.status_code >= 400:
+                raise Exception(f"runtime request failed: {response.status_code} - {response.text}")
+            result = response.json()
+
+        if fmt == "json":
+            typer.echo(json.dumps(result, indent=2, default=str))
+            return
+
+        top = Table(title="Explainable Decision")
+        top.add_column("Deployment", style="cyan")
+        top.add_column("Decision", style="yellow")
+        top.add_column("Prediction", style="green")
+        top.add_column("Confidence", style="magenta")
+        top.add_column("Margin", style="blue")
+        top.add_row(
+            str(deployment_id),
+            str(result.get("decision", "N/A")),
+            str(result.get("prediction", "N/A")),
+            str(result.get("explanation", {}).get("confidence", "N/A")),
+            str(result.get("explanation", {}).get("margin", "N/A")),
+        )
+        console.print(top)
+
+        # High-level interpretation to make the decision output easier to understand.
+        explanation = result.get("explanation", {}) if isinstance(result, dict) else {}
+        confidence = explanation.get("confidence")
+        margin = explanation.get("margin")
+        fallback_used = bool(result.get("fallback_used", False))
+        policy = result.get("refusal_policy", {}) if isinstance(result, dict) else {}
+        decision = str(result.get("decision", "N/A"))
+
+        typer.echo("Interpretation:")
+        if fallback_used:
+            typer.echo("- Runtime used fallback mode (/predict). Refusal checks were not enforced.")
+        else:
+            if confidence is None or margin is None:
+                typer.echo(
+                    "- This model/runtime does not expose probability scores, "
+                    "so confidence/margin checks could not be evaluated."
+                )
+            else:
+                typer.echo(
+                    f"- Confidence check: observed={confidence} "
+                    f"threshold={policy.get('min_confidence', 'N/A')}"
+                )
+                typer.echo(
+                    f"- Margin check: observed={margin} "
+                    f"threshold={policy.get('min_margin', 'N/A')}"
+                )
+            if decision == "refused":
+                typer.echo("- Final outcome: request was refused by safety/uncertainty policy.")
+            elif decision == "approved":
+                typer.echo("- Final outcome: request was approved by runtime policy checks.")
+            else:
+                typer.echo(f"- Final outcome: {decision}.")
+
+        reasons = result.get("reasons", [])
+        if reasons:
+            typer.echo("Reasons:")
+            for reason in reasons:
+                typer.echo(f"- {reason}")
+
+        probs = result.get("explanation", {}).get("top_probabilities", [])
+        if probs:
+            probs_table = Table(title="Top Probabilities")
+            probs_table.add_column("Class Index", style="cyan")
+            probs_table.add_column("Probability", style="green")
+            for row in probs:
+                probs_table.add_row(
+                    str(row.get("class_index")),
+                    str(row.get("probability")),
+                )
+            console.print(probs_table)
+
+        linear = result.get("explanation", {}).get("linear_feature_contributions", [])
+        if linear:
+            linear_table = Table(title="Linear Feature Contributions")
+            linear_table.add_column("Feature", style="cyan")
+            linear_table.add_column("Value")
+            linear_table.add_column("Weight", style="yellow")
+            linear_table.add_column("Contribution", style="magenta")
+            for row in linear:
+                linear_table.add_row(
+                    str(row.get("feature_index")),
+                    str(row.get("feature_value")),
+                    str(row.get("weight")),
+                    str(row.get("contribution")),
+                )
+            console.print(linear_table)
+
+            # Brief impact summary: strongest positive and negative contributors.
+            try:
+                ranked = sorted(
+                    linear,
+                    key=lambda r: abs(float(r.get("contribution", 0.0))),
+                    reverse=True,
+                )
+                positives = [r for r in ranked if float(r.get("contribution", 0.0)) > 0]
+                negatives = [r for r in ranked if float(r.get("contribution", 0.0)) < 0]
+                typer.echo("Contribution summary:")
+                if positives:
+                    p = positives[0]
+                    typer.echo(
+                        f"- Strongest positive driver: feature {p.get('feature_index')} "
+                        f"(contribution={p.get('contribution')})"
+                    )
+                if negatives:
+                    n = negatives[0]
+                    typer.echo(
+                        f"- Strongest negative driver: feature {n.get('feature_index')} "
+                        f"(contribution={n.get('contribution')})"
+                    )
+                if not positives and not negatives:
+                    typer.echo("- No directional feature contributions were found.")
+            except Exception:
+                pass
+    except Exception as e:
+        typer.echo(_friendly_explain_decision_error(str(e), deployment_id))
+
 
 @api_app_deployment.command("list-projects")
 def list_projects():

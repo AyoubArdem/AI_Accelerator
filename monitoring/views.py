@@ -241,6 +241,11 @@ class DeploymentCostIntelligenceAPIView(APIView):
             gb_ram_hour_rate = float(request.query_params.get("gb_ram_hour_rate", 0.01))
             request_million_rate = float(request.query_params.get("request_million_rate", 1.0))
             ram_reference_gb = float(request.query_params.get("ram_reference_gb", 4.0))
+            budget_raw = request.query_params.get("budget_monthly")
+            budget_monthly = float(budget_raw) if budget_raw not in (None, "", "null") else None
+            target_cpu_utilization = float(request.query_params.get("target_cpu_utilization", 65.0))
+            target_ram_utilization = float(request.query_params.get("target_ram_utilization", 70.0))
+            include_scenarios = str(request.query_params.get("include_scenarios", "true")).strip().lower() in {"1", "true", "yes", "on"}
         except (TypeError, ValueError):
             return Response({"error": "pricing parameters must be numeric"}, status=400)
 
@@ -282,6 +287,27 @@ class DeploymentCostIntelligenceAPIView(APIView):
         monthly_requests = requests_per_hour * monthly_hours
         request_monthly_cost = (monthly_requests / 1_000_000.0) * max(request_million_rate, 0.0)
         estimated_monthly_total = cpu_monthly_cost + ram_monthly_cost + request_monthly_cost
+        annual_estimated_total = estimated_monthly_total * 12.0
+
+        ram_util_pct = (avg_ram_gb / max(ram_reference_gb, 0.1)) * 100.0
+        cpu_alignment = max(0.0, 100.0 - abs(avg_cpu - target_cpu_utilization) * 1.5)
+        ram_alignment = max(0.0, 100.0 - abs(ram_util_pct - target_ram_utilization) * 1.2)
+        drift_high = bool(
+            latest_drift and (
+                latest_drift.kl_divergence > 0.25
+                or latest_drift.wasserstein_distance > 0.2
+                or latest_drift.ks_statistic > 0.3
+                or latest_drift.chi_square > 10
+            )
+        )
+        penalty = min(unresolved_alerts * 5, 25) + (10 if drift_high else 0)
+        efficiency_score = max(0.0, min(100.0, (cpu_alignment * 0.55) + (ram_alignment * 0.45) - penalty))
+        if efficiency_score >= 80:
+            efficiency_class = "optimized"
+        elif efficiency_score >= 55:
+            efficiency_class = "acceptable"
+        else:
+            efficiency_class = "needs_attention"
 
         recommendations = []
         estimated_savings = 0.0
@@ -301,18 +327,80 @@ class DeploymentCostIntelligenceAPIView(APIView):
             recommendations.append(
                 "High unresolved alerts can raise incident/ops costs. Triage and resolve alerts promptly."
             )
-        if latest_drift and (
-            latest_drift.kl_divergence > 0.25
-            or latest_drift.wasserstein_distance > 0.2
-            or latest_drift.ks_statistic > 0.3
-            or latest_drift.chi_square > 10
-        ):
+        if drift_high:
             recommendations.append(
                 "Drift is elevated. Retraining can reduce hidden quality and support costs."
             )
+
+        budget = None
+        if budget_monthly is not None and budget_monthly >= 0:
+            variance = estimated_monthly_total - budget_monthly
+            variance_pct = (variance / budget_monthly * 100.0) if budget_monthly > 0 else 0.0
+            budget = {
+                "monthly_budget": round(budget_monthly, 4),
+                "variance": round(variance, 4),
+                "variance_pct": round(variance_pct, 4),
+                "within_budget": bool(estimated_monthly_total <= budget_monthly),
+            }
+            if variance > 0:
+                recommendations.append(
+                    f"Estimated monthly spend exceeds budget by {variance:.2f}. "
+                    "Prioritize right-sizing and alert reduction."
+                )
+            else:
+                recommendations.append(
+                    f"Estimated monthly spend is under budget by {abs(variance):.2f}. "
+                    "Keep utilization monitored to preserve efficiency."
+                )
+
+        risks = []
+        if avg_cpu < 20:
+            risks.append("cpu_underutilized")
+        elif avg_cpu > 85:
+            risks.append("cpu_saturation_risk")
+        if ram_util_pct < 25:
+            risks.append("ram_underutilized")
+        elif ram_util_pct > 90:
+            risks.append("ram_saturation_risk")
+        if unresolved_alerts > 5:
+            risks.append("operational_alert_pressure")
+        if drift_high:
+            risks.append("quality_drift_risk")
+
+        scenarios = []
+        if include_scenarios:
+            def _scenario_total(cpu_factor, ram_factor, req_factor):
+                cpu_cost = ((avg_cpu * cpu_factor) / 100.0) * monthly_hours * max(cpu_hour_rate, 0.0)
+                ram_cost = max(avg_ram_gb * ram_factor, 0.0) * monthly_hours * max(gb_ram_hour_rate, 0.0)
+                req_cost = ((monthly_requests * req_factor) / 1_000_000.0) * max(request_million_rate, 0.0)
+                return cpu_cost + ram_cost + req_cost
+
+            baseline = estimated_monthly_total
+            right_size = _scenario_total(0.75, 0.8, 1.0)
+            growth_scale = _scenario_total(1.25, 1.35, 1.4)
+            aggressive_opt = _scenario_total(0.6, 0.65, 1.0)
+            scenarios = [
+                {
+                    "name": "right_size",
+                    "estimated_monthly_cost": round(right_size, 4),
+                    "delta_vs_current": round(right_size - baseline, 4),
+                },
+                {
+                    "name": "growth_scale",
+                    "estimated_monthly_cost": round(growth_scale, 4),
+                    "delta_vs_current": round(growth_scale - baseline, 4),
+                },
+                {
+                    "name": "aggressive_optimization",
+                    "estimated_monthly_cost": round(aggressive_opt, 4),
+                    "delta_vs_current": round(aggressive_opt - baseline, 4),
+                },
+            ]
+
         if not recommendations:
             recommendations.append("Cost profile appears balanced. Continue monitoring utilization and alert trends.")
 
+        total_cost_nonzero = estimated_monthly_total if estimated_monthly_total > 0 else 1.0
         payload = {
             "deployment_id": deployment.id,
             "status": deployment.status,
@@ -334,11 +422,25 @@ class DeploymentCostIntelligenceAPIView(APIView):
                 "ram_cost": round(ram_monthly_cost, 4),
                 "request_cost": round(request_monthly_cost, 4),
                 "total_estimated_cost": round(estimated_monthly_total, 4),
+                "cpu_share_pct": round(cpu_monthly_cost / total_cost_nonzero * 100.0, 4),
+                "ram_share_pct": round(ram_monthly_cost / total_cost_nonzero * 100.0, 4),
+                "request_share_pct": round(request_monthly_cost / total_cost_nonzero * 100.0, 4),
             },
+            "annual_estimated_cost": round(annual_estimated_total, 4),
+            "efficiency": {
+                "score": round(efficiency_score, 4),
+                "classification": efficiency_class,
+                "target_cpu_utilization": round(target_cpu_utilization, 4),
+                "target_ram_utilization": round(target_ram_utilization, 4),
+                "current_ram_utilization_pct": round(ram_util_pct, 4),
+            },
+            "budget": budget,
+            "risks": risks,
             "optimization": {
                 "estimated_savings_potential": round(estimated_savings, 4),
                 "recommendations": recommendations,
             },
+            "scenarios": scenarios,
         }
         return Response(payload, status=200)
 

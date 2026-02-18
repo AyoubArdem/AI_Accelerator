@@ -80,7 +80,17 @@ def me():
         response = client.get("me/")
         typer.echo(response.json())
     except Exception as e:
-        typer.echo(f"Failed to fetch user info: {str(e)}")
+        msg = str(e)
+        if "401" in msg and (
+            "token_not_valid" in msg
+            or "Token is expired" in msg
+            or "Given token not valid for any token type" in msg
+        ):
+            typer.echo(
+                "Session expired or token is invalid. Please run `aiac auth login` and try again."
+            )
+            return
+        typer.echo(f"Failed to fetch user info: {msg}")
 
 
 @auth_app.command("token-show")
