@@ -1,9 +1,11 @@
 import typer , requests
-from pathlib import Path
 from aiac.config import get_config , save_config, load_config
 from aiac.client import AIACClient
+from rich.console import Console
+from rich.table import Table
 
 auth_app = typer.Typer()
+console = Console()
 
 
 @auth_app.command("register")
@@ -24,7 +26,36 @@ def register(
         if payload.get("activation_link"):
             typer.echo(f"Activation link: {payload['activation_link']}")
     else:
-        typer.echo(f"Registration failed ({response.status_code}): {response.text}")
+        message = None
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+
+        if isinstance(payload, dict):
+            if "username" in payload:
+                message = "This username is already taken. Please choose another username."
+            elif "email" in payload:
+                message = "This email is already registered. Try logging in or use another email."
+            elif "password" in payload:
+                message = "Password does not meet requirements. Please choose a stronger password."
+            elif "role" in payload:
+                message = "Invalid role. Please use one of the supported roles."
+            elif "detail" in payload:
+                message = str(payload["detail"])
+            elif "error" in payload:
+                message = str(payload["error"])
+            elif payload:
+                first_key = next(iter(payload))
+                value = payload[first_key]
+                if isinstance(value, list) and value:
+                    message = str(value[0])
+                else:
+                    message = str(value)
+
+        if not message:
+            message = "Registration failed. Please check your input and try again."
+        typer.echo(message)
 
 @auth_app.command("login")
 
@@ -78,7 +109,22 @@ def me():
     client = AIACClient(base_path="users")
     try:
         response = client.get("me/")
-        typer.echo(response.json())
+        data = response.json()
+        if not isinstance(data, dict):
+            typer.echo("User information is not available in expected format.")
+            return
+
+        table = Table(title="Current User Profile")
+        table.add_column("Field", style="bold cyan")
+        table.add_column("Value", style="white")
+        table.add_row("ID", str(data.get("id", "-")))
+        table.add_row("Email", str(data.get("email", "-")))
+        table.add_row("Username", str(data.get("username", "-")))
+        table.add_row("Role", str(data.get("role", "-")))
+        table.add_row("Active", "yes" if data.get("is_active") else "no")
+        table.add_row("Staff", "yes" if data.get("is_staff") else "no")
+        table.add_row("Joined", str(data.get("date_joined", "-")))
+        console.print(table)
     except Exception as e:
         msg = str(e)
         if "401" in msg and (
@@ -107,10 +153,10 @@ def token_show(
         typer.echo("Invalid email or password.")
         return
 
-    config_path = Path.home() / ".aiac" / "config.json"
+    display_path = "~/.aiac/config.json"
     tokens = load_config()
     if not tokens:
-        typer.echo(f"No tokens found. Expected at: {config_path}")
+        typer.echo(f"No tokens found. Expected at: {display_path}")
         return
 
     def mask_token(value: str) -> str:
@@ -126,6 +172,6 @@ def token_show(
         "refresh": mask_token(tokens.get("refresh", "")),
     }
 
-    typer.echo(f"Token file: {config_path}")
+    typer.echo(f"Token file: {display_path}")
     typer.echo(masked)
 

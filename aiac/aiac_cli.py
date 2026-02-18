@@ -6,6 +6,7 @@ This script provides the main entry point for the AIAC CLI tool.
 """
 
 import typer
+import sys
 from aiac.user.auth import auth_app
 from aiac.deployment.commands import api_app_deployment
 from aiac.monitoring.commands import monitoring_api_app
@@ -36,6 +37,8 @@ def root(ctx: typer.Context):
 
 
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] in {"--help", "-h"}:
+        print_aiac_banner()
     app()
 
 if __name__ == "__main__":

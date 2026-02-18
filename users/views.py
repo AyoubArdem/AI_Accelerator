@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model, authenticate
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -33,13 +33,64 @@ class RegisterUserView(APIView):
 class ActivateAccountView(APIView):
     permission_classes = [AllowAny]
 
+    def _wants_html(self, request) -> bool:
+        accept = (request.headers.get("Accept") or "").lower()
+        return "text/html" in accept
+
     def get(self, request, uid, token):
         user = get_object_or_404(User, pk=uid)
+
+        if user.is_active:
+            message = "Your account is already active. You can log in now."
+            payload = {"message": message}
+            if self._wants_html(request):
+                return render(
+                    request,
+                    "users/activation_result.html",
+                    {
+                        "title": "Account Already Active",
+                        "message": message,
+                        "status_label": "Already Active",
+                        "is_success": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            return Response(payload, status=status.HTTP_200_OK)
+
         if account_activation_token.check_token(user, token):
             user.is_active = True
             user.save()
-            return Response({"message": "Account activated successfully!"}, status=status.HTTP_200_OK)
-        return Response({"error": "Invalid activation link or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            message = "Account activated successfully. You can now sign in to AIAC."
+            payload = {"message": message}
+            if self._wants_html(request):
+                return render(
+                    request,
+                    "users/activation_result.html",
+                    {
+                        "title": "Activation Successful",
+                        "message": message,
+                        "status_label": "Success",
+                        "is_success": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            return Response(payload, status=status.HTTP_200_OK)
+
+        message = "This activation link is invalid or has expired. Please register again or request a new activation email."
+        payload = {"error": message}
+        if self._wants_html(request):
+            return render(
+                request,
+                "users/activation_result.html",
+                {
+                    "title": "Activation Failed",
+                    "message": message,
+                    "status_label": "Failed",
+                    "is_success": False,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(payload, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
