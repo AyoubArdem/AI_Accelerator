@@ -90,6 +90,23 @@ Recommended controls for maintainers and contributors:
 - Static analysis and linting in CI
 - Targeted tests for auth, permissions, and input validation
 
+## No Bug Bounty
+
+AI Accelerator does not operate, sponsor, or participate in any bug bounty
+or vulnerability reward program at this time.
+
+Submission of security reports, vulnerability disclosures, or related
+communications does not create any obligation, express or implied, for
+financial compensation, rewards, or recognition.
+
+By submitting a security report, the reporter acknowledges that all
+submissions are made voluntarily and without expectation of payment,
+contract, or other consideration.
+
+AI Accelerator reserves the right to evaluate, prioritize, disclose,
+or remediate reported issues at its sole discretion.
+
+
 ## Contact
 
 For security reports and related questions:
