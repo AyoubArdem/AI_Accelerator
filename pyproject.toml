@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-accelerator"
-version = "0.1.7"
+version = "0.1.8"
 description = "AI Accelerator: A production-ready MLOps platform to deploy, monitor, and govern machine learning models with security, scalability, and auditability."
 readme = "CONSOLE.md"
 license = "Apache-2.0"

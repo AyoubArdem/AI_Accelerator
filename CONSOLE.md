@@ -13,6 +13,7 @@ aiac <group> <command> [options]
 ## Command Groups
 
 - `auth`
+- `server`
 - `deployment`
 - `monitoring`
 - `governance`
@@ -22,9 +23,43 @@ aiac <group> <command> [options]
 ```bash
 aiac --help
 aiac auth --help
+aiac server --help
 aiac deployment --help
 aiac monitoring --help
 aiac governance --help
+```
+
+## server
+
+### `server --help`
+
+```bash
+ aiac server --help
+```
+
+```text
+Usage: aiac server [OPTIONS] COMMAND [ARGS]...
+
+Local API server commands
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  run   Run the AI Accelerator Django API server.
+```
+
+### `server run`
+Run the AI Accelerator Django API server.
+
+Options:
+- `--host` (default `127.0.0.1`)
+- `--port` (default `8000`)
+- `--no-reload/--reload` (default `--no-reload`)
+
+Example:
+```bash
+aiac server run --host 127.0.0.1 --port 8000 --no-reload
 ```
 
 ## auth
