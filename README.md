@@ -186,6 +186,8 @@ aiac --help
 | [**CHANGELOG.md**](CHANGELOG.md) | Version history and release notes |
 | [**SECURITY.md**](SECURITY.md) | Security policy and vulnerability reporting |
 | [**CODE_OF_CONDUCT.md**](CODE_OF_CONDUCT.md) | Community standards and behavior guidelines |
+| [**CLA.md**](CLA.md) | Contributor License Agreement (CLA) defines the terms under which contributions are made to AI Accelerator|
+| [**TRADEMARKS.md**](TRADEMARKS.md) | This document describes the trademark policy for the AI Accelerator name and logo |
 | [**LICENSE**](LICENSE) | Apache 2.0 License terms |
 
 
