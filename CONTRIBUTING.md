@@ -4,7 +4,7 @@ Thanks for contributing to AI Accelerator. This guide explains how to propose ch
 
 ## Code of Conduct
 
-By participating, you agree to follow the project's code of conduct in `CODE_OF_CONDUCT.md`.
+By participating, you agree to follow the project's code of conduct in `CODE_OF_CONDUCT.md` and  `CLA.md`.
 
 ## Ways to Contribute
 
