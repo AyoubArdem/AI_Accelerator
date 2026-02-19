@@ -189,7 +189,7 @@ aiac --help
 | [**CLA.md**](CLA.md) | Contributor License Agreement (CLA) defines the terms under which contributions are made to AI Accelerator|
 | [**TRADEMARKS.md**](TRADEMARKS.md) | This document describes the trademark policy for the AI Accelerator name and logo |
 | [**LICENSE**](LICENSE) | Apache 2.0 License terms |
-| [**SUPPORT_OPEN_SOURCE**](.github/Support_Project) | Why sponsor AI Accelerator |
+| [**SUPPORT_OPEN_SOURCE**](.github/Support_Project.md) | Why sponsor AI Accelerator |
 
 
 
