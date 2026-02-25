@@ -256,6 +256,7 @@ aiac deployment list-model-versions --status approved
 
 ### `deployment approve-model-version`
 Approve a model version for deployment.
+This marks the version as approved so it can be deployed.
 
 Options:
 - `--model-version-id` (prompted)
@@ -268,6 +269,7 @@ aiac deployment approve-model-version --model-version-id 4 --note "QA passed"
 
 ### `deployment reject-model-version`
 Reject a model version.
+This blocks the version from deployment until it is approved again.
 
 Options:
 - `--model-version-id` (prompted)
@@ -280,6 +282,7 @@ aiac deployment reject-model-version --model-version-id 4 --note "Missing bias c
 
 ### `deployment retire-model-version`
 Retire a model version.
+This keeps the version in history but marks it as retired so it should not be deployed again.
 
 Options:
 - `--model-version-id` (prompted)
@@ -734,6 +737,41 @@ Example:
 aiac governance run-policy-engine
 ```
 
+### `governance debug-policy-engine`
+Debug why violations are/aren't generated for a policy.
+
+Options:
+- `--policy, -p` (required policy id)
+- `--deployment, -d` (optional deployment filter)
+- `--limit, -l` (default `50`, clamped `1..200`)
+
+Example:
+```bash
+aiac governance debug-policy-engine --policy 3 --deployment 14 --limit 100
+```
+
+### `governance policy-insights`
+Advanced coverage/risk insights with recommendations.
+
+Options:
+- `--policy, -p` (optional)
+- `--days, -d` (default `7`, clamped `1..90`)
+- `--format, -f` (`table|csv`, default `table`)
+
+Examples:
+```bash
+aiac governance policy-insights
+aiac governance policy-insights --policy 3 --days 30 --format csv
+```
+
+### `governance alert-logs`
+View governance alert logs.
+
+Example:
+```bash
+aiac governance alert-logs
+```
+
 ## admin
 
 ### `admin list-users`
@@ -868,41 +906,6 @@ Options:
 Example:
 ```bash
 aiac admin export-audits-json --out audit_logs.json
-```
-
-### `governance debug-policy-engine`
-Debug why violations are/aren't generated for a policy.
-
-Options:
-- `--policy, -p` (required policy id)
-- `--deployment, -d` (optional deployment filter)
-- `--limit, -l` (default `50`, clamped `1..200`)
-
-Example:
-```bash
-aiac governance debug-policy-engine --policy 3 --deployment 14 --limit 100
-```
-
-### `governance policy-insights`
-Advanced coverage/risk insights with recommendations.
-
-Options:
-- `--policy, -p` (optional)
-- `--days, -d` (default `7`, clamped `1..90`)
-- `--format, -f` (`table|csv`, default `table`)
-
-Examples:
-```bash
-aiac governance policy-insights
-aiac governance policy-insights --policy 3 --days 30 --format csv
-```
-
-### `governance alert-logs`
-View governance alert logs.
-
-Example:
-```bash
-aiac governance alert-logs
 ```
 
 ## Notes
