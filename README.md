@@ -9,7 +9,7 @@
 
 **AI Accelerator** is an end-to-end platform designed to **deploy, monitor, and govern machine learning models in production** in a secure, scalable, and auditable way.
 
-[![PyPI version](https://img.shields.io/pypi/v/ai-accelerator)](https://pypi.org/project/ai-accelerator/)
+[![PyPI version](https://img.shields.io/pypi/v/ai-accelerator?cacheSeconds=0)](https://pypi.org/project/ai-accelerator/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -874,5 +874,4 @@ limitations under the License.
 > Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable from experimentation to real-world impact.
 
  **Let's build the future of AI infrastructure together!**
-
 
