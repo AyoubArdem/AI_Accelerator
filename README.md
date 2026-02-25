@@ -694,7 +694,7 @@ To test protected endpoints, you'll need to:
 
 ## Project Status
 
-**AI Accelerator v0.1.0** is now available on PyPI! 
+**AI Accelerator v1.0.1** is now available on PyPI! 
 
 ### Current Status
 - **Core functionality** implemented and tested
@@ -874,8 +874,5 @@ limitations under the License.
 > Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable from experimentation to real-world impact.
 
  **Let's build the future of AI infrastructure together!**
-
-
-
 
 
