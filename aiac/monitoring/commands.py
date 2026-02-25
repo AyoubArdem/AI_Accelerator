@@ -13,6 +13,32 @@ table = Table()
 monitoring_api_app = typer.Typer(help = "monitoring commands")
 
 
+def _is_html_error_blob(text: str) -> bool:
+    t = (text or "").lower()
+    return "<!doctype html>" in t or "<html" in t
+
+
+def _friendly_backend_error(prefix: str, error_text: str) -> str:
+    text = str(error_text or "")
+    if "API server is not reachable" in text:
+        return text
+    if "OperationalError" in text:
+        return (
+            f"{prefix}: backend database is not ready.\n"
+            "Start the API server with migrations:\n"
+            "  aiac server run --migrate\n"
+            "Then retry the command."
+        )
+    if _is_html_error_blob(text):
+        return (
+            f"{prefix}: backend returned an internal server error.\n"
+            "Check backend logs with:\n"
+            "  aiac server status\n"
+            "  type %USERPROFILE%\\.aiac\\server.log"
+        )
+    return f"{prefix}: {text}"
+
+
 def _friendly_detect_drift_error(error_text: str, model_version_id: int) -> str:
     if "Insufficient data for drift detection" in error_text:
         return (
@@ -22,7 +48,10 @@ def _friendly_detect_drift_error(error_text: str, model_version_id: int) -> str:
         )
     if "404" in error_text and "model_version" in error_text.lower():
         return f"Model version {model_version_id} was not found. Check the ID and try again."
-    return f"Failed to detect drift for model_version_id {model_version_id}: {error_text}"
+    return _friendly_backend_error(
+        f"Failed to detect drift for model_version_id {model_version_id}",
+        error_text,
+    )
 
 
 def _friendly_deploy_stats_error(error_text: str, deployment_id: int) -> str:
@@ -31,7 +60,10 @@ def _friendly_deploy_stats_error(error_text: str, deployment_id: int) -> str:
             f"Deployment {deployment_id} was not found. "
             "Run `deployment list-deployments` and use a valid deployment ID."
         )
-    return f"Failed to fetch stats for deployment_id {deployment_id}: {error_text}"
+    return _friendly_backend_error(
+        f"Failed to fetch stats for deployment_id {deployment_id}",
+        error_text,
+    )
 
 
 def _friendly_alert_error(error_text: str, deployment_id: int) -> str:
@@ -40,7 +72,10 @@ def _friendly_alert_error(error_text: str, deployment_id: int) -> str:
             f"Deployment {deployment_id} was not found. "
             "Run `deployment list-deployments` and use a valid deployment ID."
         )
-    return f"Failed to fetch alerts for deployment_id {deployment_id}: {error_text}"
+    return _friendly_backend_error(
+        f"Failed to fetch alerts for deployment_id {deployment_id}",
+        error_text,
+    )
 
 
 def _friendly_health_report_error(error_text: str, deployment_id: int) -> str:
@@ -51,7 +86,10 @@ def _friendly_health_report_error(error_text: str, deployment_id: int) -> str:
         )
     if "403" in error_text and "Access denied" in error_text:
         return "Access denied for this deployment health report."
-    return f"Failed to fetch health report for deployment_id {deployment_id}: {error_text}"
+    return _friendly_backend_error(
+        f"Failed to fetch health report for deployment_id {deployment_id}",
+        error_text,
+    )
 
 
 def _friendly_cost_intelligence_error(error_text: str, deployment_id: int) -> str:
@@ -62,7 +100,10 @@ def _friendly_cost_intelligence_error(error_text: str, deployment_id: int) -> st
         )
     if "403" in error_text and "Access denied" in error_text:
         return "Access denied for this deployment cost report."
-    return f"Failed to fetch cost intelligence for deployment_id {deployment_id}: {error_text}"
+    return _friendly_backend_error(
+        f"Failed to fetch cost intelligence for deployment_id {deployment_id}",
+        error_text,
+    )
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -195,6 +236,7 @@ def deployment_stats(
     latency_warn: float = typer.Option(500.0, help="Latency warning threshold in ms."),
     error_rate_warn: float = typer.Option(5.0, help="Error-rate warning threshold in percent."),
 ):
+    """Show live or one-shot deployment stats with health warnings."""
     client = AIACClient(base_path="monitoring")
 
     try:
@@ -272,6 +314,28 @@ def deployment_stats(
                     str(payload.get("updated_at", "N/A")),
                 )
                 console.print(stats_table)
+                typer.echo("Interpretation:")
+                if warnings:
+                    typer.echo("- Health is 'warning' because one or more thresholds were exceeded.")
+                    for warning in warnings:
+                        typer.echo(f"- {warning}")
+                else:
+                    typer.echo("- Health is 'healthy' because all thresholds are below the warning limits.")
+                if latency_ms == 0.0:
+                    if request_count <= 0:
+                        typer.echo(
+                            "- Latency is 0 because there have been no requests yet. "
+                            "Send traffic to the deployment and re-run stats."
+                        )
+                    else:
+                        typer.echo(
+                            "- Latency is 0 because the collector did not report latency for this window "
+                            "or only a single request was seen. Re-run with `--watch`."
+                        )
+                typer.echo(
+                    "- CPU/RAM values are percentages of the runtime container. "
+                    "Use `monitoring deploy-records` for per-sample detail."
+                )
 
             poll_count += 1
             if not watch:
@@ -294,6 +358,7 @@ def deployment_records(
     ram_warn: float = typer.Option(85.0, help="RAM warning threshold in percent."),
     latency_warn: float = typer.Option(500.0, help="Latency warning threshold in ms."),
 ):
+    """Show deployment monitoring records with summary statistics."""
     client = AIACClient(base_path="monitoring")
 
     try:
@@ -435,15 +500,39 @@ def deployment_records(
                 break
             time.sleep(interval_seconds)
     except Exception as e:
-        typer.echo(f"Failed to fetch records for deployment_id {deployment_id}: {str(e)}")
+        typer.echo(
+            _friendly_backend_error(
+                f"Failed to fetch records for deployment_id {deployment_id}",
+                str(e),
+            )
+        )
 
 @monitoring_api_app.command("alert")
-def receive_metrics(deployment_id: int = typer.Option(..., prompt=True, help="deployment alerts")):
+def receive_metrics(
+    deployment_id: int = typer.Option(..., prompt=True, help="deployment alerts"),
+    include_resolved: bool = typer.Option(False, "--include-resolved", help="Include resolved alerts."),
+    limit: int = typer.Option(50, "--limit", "-l", help="Max alerts to display."),
+    only_type: str = typer.Option("", "--only-type", help="Filter by alert type."),
+    only_severity: str = typer.Option("", "--only-severity", help="Filter by severity (e.g., low, medium, high)."),
+    since_hours: int = typer.Option(0, "--since-hours", help="Only include alerts created in the last N hours."),
+    since: str = typer.Option("", "--since", help="Only include alerts created after ISO timestamp (e.g., 2026-02-25T10:00:00Z)."),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
+):
+    """List alerts for a deployment with filters and summaries."""
     client = AIACClient(base_path="monitoring")
 
     try:
+        fmt = (output_format or "table").strip().lower()
+        if fmt not in {"table", "json"}:
+            typer.echo("Invalid format. Use 'table' or 'json'.")
+            return
+        if limit < 1:
+            typer.echo("Limit must be at least 1.")
+            return
+
         response = client.api_request(f"deployments/{deployment_id}/alerts/", method="GET")
-        alerts = response.json()
+        alerts_payload = response.json()
+        alerts = alerts_payload if isinstance(alerts_payload, list) else [alerts_payload]
         print_warning(f"Fetching alerts for deployment_id: {deployment_id}")
         if not alerts:
             deployment_exists = False
@@ -466,10 +555,61 @@ def receive_metrics(deployment_id: int = typer.Option(..., prompt=True, help="de
                 )
             return
 
+        if not include_resolved:
+            alerts = [a for a in alerts if not bool(a.get("resolved"))]
+        if only_type:
+            alerts = [a for a in alerts if str(a.get("alert_type", "")).lower() == only_type.lower()]
+        if only_severity:
+            alerts = [a for a in alerts if str(a.get("severity", "")).lower() == only_severity.lower()]
+        from datetime import datetime, timezone, timedelta
+        cutoff = None
+        if since:
+            since_value = since.strip()
+            if since_value.endswith("Z"):
+                since_value = since_value[:-1] + "+00:00"
+            try:
+                cutoff = datetime.fromisoformat(since_value)
+                if cutoff.tzinfo is None:
+                    cutoff = cutoff.replace(tzinfo=timezone.utc)
+            except Exception:
+                typer.echo("Invalid --since value. Use ISO format like 2026-02-25T10:00:00Z.")
+                return
+        elif since_hours and since_hours > 0:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+
+        if cutoff is not None:
+            filtered = []
+            for alert in alerts:
+                created_at = str(alert.get("created_at", "")).strip()
+                if not created_at:
+                    continue
+                # Normalize ISO with Z to Python fromisoformat compatible.
+                if created_at.endswith("Z"):
+                    created_at = created_at[:-1] + "+00:00"
+                try:
+                    dt = datetime.fromisoformat(created_at)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                except Exception:
+                    continue
+                if dt >= cutoff:
+                    filtered.append(alert)
+            alerts = filtered
+        alerts = alerts[:limit]
+
+        total = len(alerts)
+        resolved_count = sum(1 for a in alerts if bool(a.get("resolved")))
+        unresolved_count = total - resolved_count
+
+        if fmt == "json":
+            typer.echo(json.dumps(alerts, indent=2, default=str))
+            return
+
         table = Table(title="Deployment Alerts")
         table.add_column("ID", style="cyan", no_wrap=True)
         table.add_column("Deployment", style="magenta")
         table.add_column("Alert Type", style="red")
+        table.add_column("Severity", style="yellow")
         table.add_column("Message", style="yellow")
         table.add_column("Created At", style="green")
         table.add_column("Resolved", style="blue")
@@ -480,12 +620,26 @@ def receive_metrics(deployment_id: int = typer.Option(..., prompt=True, help="de
                 str(alert.get('id', 'N/A')),
                 str(deployment_id),
                 str(alert.get('alert_type', 'N/A')),
+                str(alert.get('severity', 'N/A')),
                 str(alert.get('message', 'N/A')),
                 str(alert.get('created_at', 'N/A')),
                 str(alert.get('resolved', 'N/A'))
             )
 
         console.print(table)
+        typer.echo(f"Summary: total={total} unresolved={unresolved_count} resolved={resolved_count}")
+        if total:
+            recent = alerts[: min(3, total)]
+            typer.echo("Most recent alerts:")
+            for idx, alert in enumerate(recent, start=1):
+                typer.echo(
+                    f"{idx}. {alert.get('created_at', 'N/A')} | "
+                    f"type={alert.get('alert_type', 'N/A')} | "
+                    f"resolved={alert.get('resolved', 'N/A')} | "
+                    f"message={alert.get('message', 'N/A')}"
+                )
+        if not include_resolved:
+            typer.echo("Tip: add `--include-resolved` to include resolved alerts.")
     except Exception as e:
         typer.echo(_friendly_alert_error(str(e), deployment_id))
 
@@ -496,10 +650,12 @@ def resolve_alert(
     include_resolved: bool = typer.Option(False, "--include-resolved", help="Include resolved alerts when listing options."),
     force: bool = typer.Option(False, "--yes", "-y", help="Resolve without confirmation."),
 ):
+    """Resolve a deployment alert by id or interactive selection."""
     client = AIACClient(base_path="monitoring")
 
     try:
         chosen_alert_id = alert_id
+        selected_alert = None
 
         if not chosen_alert_id:
             if deployment_id is None:
@@ -545,7 +701,8 @@ def resolve_alert(
             if selected_index < 1 or selected_index > len(alerts):
                 typer.echo("Invalid alert index.")
                 return
-            chosen_alert_id = str(alerts[selected_index - 1].get("id", "")).strip()
+            selected_alert = alerts[selected_index - 1]
+            chosen_alert_id = str(selected_alert.get("id", "")).strip()
 
         try:
             parsed_uuid = uuid.UUID(str(chosen_alert_id))
@@ -562,6 +719,12 @@ def resolve_alert(
         payload = response.json() if response.text else {}
         print_info(f"Resolving alert with alert_id: {parsed_uuid}")
         typer.echo(f"Alert resolved successfully (status={payload.get('status', 'ok')}).")
+        if selected_alert:
+            typer.echo(
+                f"Resolved: type={selected_alert.get('alert_type')} "
+                f"message={selected_alert.get('message')} "
+                f"deployment={deployment_id}"
+            )
     except Exception as e:
         msg = str(e)
         if "404" in msg and "Alert not found" in msg:
@@ -569,7 +732,7 @@ def resolve_alert(
         elif "404" in msg and "Deployment not found" in msg:
             typer.echo("Deployment not found. Run `deployment list-deployments` and use a valid deployment ID.")
         else:
-            typer.echo(f"Failed to resolve alert: {msg}")
+            typer.echo(_friendly_backend_error("Failed to resolve alert", msg))
 
 
 @monitoring_api_app.command("health-report")
@@ -578,6 +741,7 @@ def health_report(
     window: int = typer.Option(50, "--window", "-w", help="Number of recent records considered (10-500)."),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
 ):
+    """Generate a health report with metrics, alerts, and drift signals."""
     client = AIACClient(base_path="monitoring")
     try:
         fmt = (output_format or "table").strip().lower()
@@ -607,6 +771,13 @@ def health_report(
             str(payload.get("window_records", "N/A")),
         )
         console.print(summary)
+        typer.echo("Interpretation:")
+        typer.echo(
+            "- Health score summarizes CPU/RAM/latency/error metrics and recent alerts."
+        )
+        typer.echo(
+            "- Health status is derived from the score and recent issues."
+        )
 
         metrics = payload.get("metrics", {})
         metrics_table = Table(title="Metrics")
@@ -630,6 +801,31 @@ def health_report(
         typer.echo(
             f"Alerts: unresolved={alerts.get('unresolved', 0)} | last_24h={alerts.get('last_24h', 0)}"
         )
+
+        typer.echo("Interpretation:")
+        health_score = payload.get("health_score")
+        health_status = payload.get("health_status")
+        if health_score is not None:
+            typer.echo(
+                f"- Health score {health_score} maps to status '{health_status}'. "
+                "Higher is healthier."
+            )
+        else:
+            typer.echo("- Health status is derived from recent CPU/RAM/latency/error metrics.")
+        avg_ram = metrics.get("avg_ram_usage")
+        if avg_ram is not None:
+            try:
+                if float(avg_ram) >= 90:
+                    typer.echo("- Average RAM is very high; consider scaling or memory tuning.")
+            except (TypeError, ValueError):
+                pass
+        if payload.get("drift") is None:
+            typer.echo(
+                "- Drift is unavailable because no recent drift scan exists. "
+                "Run `monitoring detect-drift` to populate drift metrics."
+            )
+        if alerts.get("unresolved", 0):
+            typer.echo("- Unresolved alerts can degrade the health score until resolved.")
 
         drift = payload.get("drift")
         if drift:
@@ -676,6 +872,7 @@ def cost_intelligence(
     include_scenarios: bool = typer.Option(True, "--scenarios/--no-scenarios", help="Include projected cost scenarios."),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
 ):
+    """Estimate deployment cost, efficiency, and optimization opportunities."""
     client = AIACClient(base_path="monitoring")
     try:
         fmt = (output_format or "table").strip().lower()
@@ -733,6 +930,10 @@ def cost_intelligence(
             str(util.get("requests_per_hour", 0)),
         )
         console.print(util_table)
+        typer.echo("Interpretation:")
+        typer.echo("- Avg CPU % and Avg RAM GB are averages over the selected window.")
+        typer.echo("- RAM Util % uses the configured reference RAM size.")
+        typer.echo("- Requests/Hour is derived from request counts in the window.")
 
         cost = payload.get("cost_breakdown_monthly", {})
         cost_table = Table(title="Estimated Monthly Cost")
@@ -753,6 +954,9 @@ def cost_intelligence(
             str(cost.get("request_share_pct", 0)),
         )
         console.print(cost_table)
+        typer.echo("Interpretation:")
+        typer.echo("- Cost breakdown is estimated from utilization and pricing inputs.")
+        typer.echo("- CPU/RAM/Req % show which component dominates monthly cost.")
 
         efficiency = payload.get("efficiency", {})
         typer.echo(
@@ -761,6 +965,10 @@ def cost_intelligence(
             f"class={efficiency.get('classification')} "
             f"target_cpu={efficiency.get('target_cpu_utilization')} "
             f"target_ram={efficiency.get('target_ram_utilization')}"
+        )
+        typer.echo(
+            "Reality check: these figures are estimates based on monitoring data and configured rates, "
+            "not actual cloud billing. Use them for relative sizing decisions."
         )
 
         budget = payload.get("budget")
@@ -792,6 +1000,10 @@ def cost_intelligence(
                     str(row.get("delta_vs_current", "")),
                 )
             console.print(scenario_table)
+            typer.echo(
+                "Interpretation: scenarios simulate cost changes if you resize resources. "
+                "Negative delta means cheaper than current; positive means higher cost."
+            )
 
         optimization = payload.get("optimization", {})
         typer.echo(f"Estimated savings potential: {optimization.get('estimated_savings_potential', 0)} / month")
@@ -819,6 +1031,7 @@ def detect_drift(
     interval_seconds: int = typer.Option(30, "--interval", "-i", help="Seconds between checks for --watch."),
     iterations: int = typer.Option(0, "--iterations", help="Number of checks for --watch (0 means infinite)."),
 ):
+    """Run drift detection with thresholds, history, and watch mode."""
     client = AIACClient(base_path="monitoring")
 
     try:
@@ -897,6 +1110,18 @@ def detect_drift(
             )
 
             if explain:
+                typer.echo("Interpretation:")
+                if detected:
+                    typer.echo("- Drift detected because at least one metric breached its threshold.")
+                else:
+                    typer.echo("- No drift detected; all metrics are within thresholds.")
+                typer.echo(
+                    "- Status meanings: ok=below threshold, near=approaching threshold, breach=exceeded threshold."
+                )
+                typer.echo(
+                    "- Wasserstein captures distribution shift magnitude; KL/KS/Chi-square capture divergence tests."
+                )
+
                 analysis_table = Table(title="Drift Analysis")
                 analysis_table.add_column("Metric", style="cyan")
                 analysis_table.add_column("Value")
@@ -938,9 +1163,15 @@ def get_samples(
     preview: int = typer.Option(3, "--preview", help="Preview first N parsed samples."),
     strict_shape: bool = typer.Option(False, "--strict-shape", help="Require consistent vector dimensions."),
 ):
+    """Upload or validate samples for drift/monitoring."""
     client = AIACClient(base_path="monitoring")
 
     try:
+        typer.echo("Input format guidance:")
+        typer.echo("- Single feature row: [[6,63,98,26,726,38.3,2.466,25]]")
+        typer.echo("- Multiple rows: [[6,63,98,26,726,38.3,2.466,25],[5,50,90,22,700,35.2,1.9,30]]")
+        typer.echo("- Scalar samples (one number per sample): [0.1,0.2,0.3]")
+
         payload_samples = []
         fmt = (input_format or "auto").strip().lower()
         if fmt not in {"auto", "json", "csv"}:
@@ -1028,8 +1259,30 @@ def get_samples(
             f"Parsed samples: total={stats['count']} scalar={stats['scalar_count']} "
             f"vector={stats['vector_count']} dims={stats['vector_dims'] if stats['vector_dims'] else 'N/A'}"
         )
+        if stats["count"] < 20:
+            typer.echo(
+                "Note: drift detection needs at least 20 samples. "
+                "Add more rows/samples before running `monitoring detect-drift`."
+            )
+        if stats["scalar_count"] == stats["count"] and stats["count"] > 1:
+            typer.echo(
+                "Interpretation: you provided a list of scalar samples (one number per sample). "
+                "If you intended a single multi-feature row, wrap it as a nested list, e.g. [[6, 63, 98, ...]]."
+            )
+        if stats["vector_count"] > 0:
+            dims = stats["vector_dims"]
+            if dims:
+                typer.echo(
+                    f"Interpretation: you provided {stats['vector_count']} vector samples with dimensions {dims}."
+                )
         if preview_rows:
-            typer.echo(f"Preview ({len(preview_rows)}): {json.dumps(preview_rows)}")
+            preview_label = "rows" if stats["vector_count"] > 0 else "values"
+            typer.echo(f"Preview ({len(preview_rows)} {preview_label}):")
+            for idx, row in enumerate(preview_rows, start=1):
+                if isinstance(row, list):
+                    typer.echo(f"  {idx:02d}. {json.dumps(row)}")
+                else:
+                    typer.echo(f"  {idx:02d}. {row}")
 
         if dry_run:
             typer.echo("Dry run complete. No samples were uploaded.")
@@ -1062,5 +1315,10 @@ def get_samples(
 
         typer.echo(f"Samples posted successfully: inserted_total={inserted_total}")
     except Exception as e:
-        typer.echo(f"Failed to post samples for model_version_id {model_version_id}: {str(e)}")
+        typer.echo(
+            _friendly_backend_error(
+                f"Failed to post samples for model_version_id {model_version_id}",
+                str(e),
+            )
+        )
        

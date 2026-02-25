@@ -12,6 +12,7 @@ from aiac.deployment.commands import api_app_deployment
 from aiac.monitoring.commands import monitoring_api_app
 from aiac.governance.commands import governance_api_app
 from aiac.server.commands import server_app
+from aiac.admin.commands import admin_app
 from aiac.console import print_aiac_banner
 
 # Create the main CLI app
@@ -27,6 +28,7 @@ app.add_typer(api_app_deployment, name="deployment", help="Deployment management
 app.add_typer(monitoring_api_app, name="monitoring", help="Monitoring and analytics commands")
 app.add_typer(governance_api_app, name="governance", help="Governance and policy commands")
 app.add_typer(server_app, name="server", help="Local API server commands")
+app.add_typer(admin_app, name="admin", help="Admin services commands")
 
 
 @app.callback(invoke_without_command=True)

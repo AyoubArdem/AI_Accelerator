@@ -14,6 +14,8 @@ from .views import (
     DeploymentServiceCatalogAPIView,
     ModelVersionDelete,
     ProjectDelete,
+    ModelVersionApprovalView,
+    ModelApprovalListView,
 )
 
 urlpatterns = [
@@ -24,6 +26,10 @@ urlpatterns = [
     path("projects/<int:pk>/delete/", ProjectDelete.as_view()),
     path("model-versions/", ModelVersionViewset.as_view()),
     path("model-versions/<int:pk>/delete/", ModelVersionDelete.as_view()),
+    path("model-versions/<int:model_version_id>/approve/", ModelVersionApprovalView.as_view(), {"decision": "approved"}),
+    path("model-versions/<int:model_version_id>/reject/", ModelVersionApprovalView.as_view(), {"decision": "rejected"}),
+    path("model-versions/<int:model_version_id>/retire/", ModelVersionApprovalView.as_view(), {"decision": "retired"}),
+    path("model-versions/<int:model_version_id>/approvals/", ModelApprovalListView.as_view()),
     path("deployments/", CreateDeploymentView.as_view({"get": "list", "post": "create"})),
     path("deployments/list/", ListDeploymentsView.as_view()),
     path("deployments/<int:id>/", DeploymentDetailView.as_view()),

@@ -4,7 +4,6 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from django.conf import settings
 from celery import shared_task
 from deployment.models import Deployment
 from governance.utils import LogAction
@@ -12,6 +11,7 @@ import requests
 
 @shared_task(bind=True, max_retries=3, soft_time_limit=300, time_limit=400)
 def deploy_model_task(self, deployment_id):
+    deploy = None
     try:
         deploy = Deployment.objects.get(id=deployment_id)
         model_path = deploy.model_version.field_file.path
@@ -44,13 +44,17 @@ def deploy_model_task(self, deployment_id):
 
         runtime_folder = tempfile.mkdtemp(prefix=f"deploy_{deployment_id}_")
 
-        runtime_src = Path(settings.BASE_DIR) / "deployment"
-        allowed_files = ["requirements.txt", "fast_api.py", "Dockerfile"]
-        for file in allowed_files:
-            shutil.copy(
-                runtime_src / file,
-                runtime_folder
+        runtime_src = Path(__file__).resolve().parent
+        required_files = ["requirements.txt", "fast_api.py", "Dockerfile"]
+        missing_files = [name for name in required_files if not (runtime_src / name).exists()]
+        if missing_files:
+            raise FileNotFoundError(
+                "Runtime packaging is incomplete. Missing deployment runtime file(s): "
+                f"{', '.join(missing_files)}. Reinstall/upgrade `ai-accelerator` package."
             )
+
+        for file_name in required_files:
+            shutil.copy(runtime_src / file_name, runtime_folder)
 
         
         shutil.copy(model_path, f"{runtime_folder}/model.pkl")
@@ -120,6 +124,13 @@ def deploy_model_task(self, deployment_id):
         deploy.status = Deployment.StatusChoices.ACTIVE
         deploy.logs = "Deployment active"
         deploy.save(update_fields=["status", "logs"])
+        try:
+            mv = deploy.model_version
+            mv.deployed = True
+            mv.save(update_fields=["deployed"])
+        except Exception:
+            # Do not fail deployment if model-version flag update fails.
+            pass
 
         if deploy.user.role == "admin": 
                 role_permissions = { "role": "admin", "permissions": [ "deployment:*", "monitoring:*", "governance:*", "audit:read" ] }
@@ -179,12 +190,12 @@ def deploy_model_task(self, deployment_id):
         return {"status": "success"}
 
     except subprocess.TimeoutExpired as e:
-        deploy.status = Deployment.StatusChoices.FAILED
-        deploy.logs = f"Timeout during deployment step: {e}"
-        deploy.save()
+        if deploy is not None:
+            deploy.status = Deployment.StatusChoices.FAILED
+            deploy.logs = f"Timeout during deployment step: {e}"
+            deploy.save(update_fields=["status", "logs"])
         return {"status": "failed", "error": str(e)}
     except subprocess.CalledProcessError as e:
-        deploy.status = Deployment.StatusChoices.FAILED
         stderr = ""
         stdout = ""
         if hasattr(e, "stderr") and e.stderr:
@@ -192,11 +203,16 @@ def deploy_model_task(self, deployment_id):
         if hasattr(e, "stdout") and e.stdout:
             stdout = str(e.stdout)
         detail = stderr.strip() or stdout.strip() or str(e)
-        deploy.logs = detail[:1200]
-        deploy.save()
+        if deploy is not None:
+            deploy.status = Deployment.StatusChoices.FAILED
+            deploy.logs = detail[:1200]
+            deploy.save(update_fields=["status", "logs"])
         return {"status": "failed", "error": detail}
     except Exception as e:
-        deploy.status = Deployment.StatusChoices.FAILED
-        deploy.logs = str(e)
-        deploy.save()
-        self.retry(exc=e, countdown=5)   
+        detail = str(e)
+        if deploy is not None:
+            deploy.status = Deployment.StatusChoices.FAILED
+            deploy.logs = detail[:1200]
+            deploy.save(update_fields=["status", "logs"])
+        # Do not raise retry errors to API callers when running in fallback mode.
+        return {"status": "failed", "error": detail}

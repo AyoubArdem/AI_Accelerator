@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-02-25
+
 ### Added
 - Advanced deployment services endpoints and CLI commands:
   - `deployment advisor`
@@ -21,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `governance debug-policy-engine`
   - `governance policy-insights`
 - Interactive metadata-based policy rule generation in `governance create-policy` with scope support (`deployment`, `monitoring`, `both`).
+- Admin service and CLI commands for user management and audit export.
+- Password reset API, UI templates, and CLI (`aiac auth password-reset`).
+- Model approval workflow (approve/reject/retire/list approvals) with deployment gating.
+- Runtime capability endpoint and explainable decision help route in deployed apps.
+- Packaging guardrails for required runtime assets (Dockerfiles) in wheels.
 - Improved command documentation in `CONSOLE.md` and richer project/application explanations in `README.md`.
 
 ### Changed
@@ -31,12 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced drift detection UX with threshold profiles, history display, and watch mode.
 - Expanded monitoring records/stats commands with better summaries and output formats.
 - Standardized command examples to package-style usage (`aiac ...`).
+- CLI auth/logout UX now clears token file on logout success.
+- `governance apply-policy` output now shows `applied_by` username when available.
+- Server stop now cleans up the server log file.
+- Redeploy command output is now friendlier and more focused.
 
 ### Fixed
 - Friendlier error handling across deployment, monitoring, and governance commands.
 - Better empty-state messaging for list views (alerts, violations, records, logs).
 - Policy application UX improvements (prompting and duplicate-assignment feedback).
 - README formatting/encoding cleanup and metadata example rendering.
+- Packaging/runtime issues that caused missing Dockerfiles in installed distributions.
 
 ## [0.1.0] - 2026-02-02
 

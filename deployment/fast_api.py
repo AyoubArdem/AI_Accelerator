@@ -5,7 +5,10 @@ import os, json, logging, time, base64
 from io import BytesIO
 from typing import Optional, List, Dict, Any
 import numpy as np
-import joblib
+try:
+    import joblib
+except ModuleNotFoundError:
+    joblib = None
 
 app = FastAPI(title="Model Runtime", redoc_url=None)
 
@@ -44,11 +47,13 @@ class PredictImageRequest(BaseModel):
 # --- Loaders ---
 def load_pickle(path):
     import pickle
-    try:
-        return joblib.load(path)
-    except Exception:
-        with open(path, "rb") as f:
-            return pickle.load(f)
+    if joblib is not None:
+        try:
+            return joblib.load(path)
+        except Exception:
+            pass
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
 def load_pytorch(path):
     import torch
@@ -87,6 +92,27 @@ def _to_jsonable(value):
         except Exception:
             return value
     return value
+
+
+def _capabilities() -> Dict[str, Any]:
+    caps = {
+        "framework": model_info.get("framework", "unknown"),
+        "supports_probabilities": hasattr(model, "predict_proba") if model is not None else False,
+        "supports_text": False,
+        "supports_image": False,
+        "missing_dependencies": [],
+    }
+    try:
+        import PIL  # noqa: F401
+        caps["supports_image"] = True
+    except Exception:
+        caps["missing_dependencies"].append("pillow")
+    try:
+        import transformers  # noqa: F401
+        caps["supports_text"] = True
+    except Exception:
+        caps["missing_dependencies"].append("transformers")
+    return caps
 
 
 def _infer_from_array(arr: np.ndarray):
@@ -810,6 +836,38 @@ def predict(req: PredictRequest):
     except Exception as e:
         logger.exception("Prediction error")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/predict-decision", response_class=HTMLResponse)
+def predict_decision_help():
+    return """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Explainable Decision API</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, Verdana, sans-serif; margin: 24px; color: #1f2933; }
+    code { background: #f2f4f7; padding: 2px 6px; border-radius: 6px; }
+    pre { background: #f8f9fb; padding: 12px; border-radius: 8px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h2>Explainable Decision API</h2>
+  <p>This endpoint only accepts <strong>POST</strong> requests with JSON.</p>
+  <p>Try it from the runtime UI: <code>/ui</code> or use curl:</p>
+  <pre>curl -X POST http://127.0.0.1:8000/predict-decision \\
+  -H "Content-Type: application/json" \\
+  -d '{"features":[0.1,0.2,0.3],"min_confidence":0.6,"min_margin":0.1,"blocked_labels":["denied"]}'</pre>
+</body>
+</html>
+"""
+
+
+@app.get("/capabilities")
+def capabilities():
+    return _capabilities()
 
 
 @app.post("/predict-decision")

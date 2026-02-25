@@ -17,6 +17,7 @@ aiac <group> <command> [options]
 - `deployment`
 - `monitoring`
 - `governance`
+- `admin`
 
 ## Quick Help
 
@@ -27,6 +28,7 @@ aiac server --help
 aiac deployment --help
 aiac monitoring --help
 aiac governance --help
+aiac admin --help
 ```
 
 ## server
@@ -56,10 +58,31 @@ Options:
 - `--host` (default `127.0.0.1`)
 - `--port` (default `8000`)
 - `--no-reload/--reload` (default `--no-reload`)
+- `--background/--foreground` (default `--background`)
+- `--migrate/--no-migrate` (default `--migrate`)
 
 Example:
 ```bash
 aiac server run --host 127.0.0.1 --port 8000 --no-reload
+```
+
+Notes:
+- By default, AIAC runs database migrations automatically before server startup.
+
+### `server status`
+Show local background server status.
+
+Example:
+```bash
+aiac server status
+```
+
+### `server stop`
+Stop local background server started by `aiac server run`.
+
+Example:
+```bash
+aiac server stop
 ```
 
 ## auth
@@ -109,6 +132,14 @@ Example:
 aiac auth me
 ```
 
+### `auth password-reset`
+Request a secure password reset email.
+
+Example:
+```bash
+aiac auth password-reset --email user@example.com
+```
+
 ### `auth token-show`
 Verify credentials then show masked saved tokens.
 
@@ -119,6 +150,46 @@ Options:
 Example:
 ```bash
 aiac auth token-show --email user@example.com --password secret
+```
+
+### Friendly Errors and Recovery (`auth` + `server`)
+
+When the API server is down:
+```text
+Unable to login because the API server is not reachable at http://127.0.0.1:8000.
+Start the server with `aiac server run --host 127.0.0.1 --port 8000` and try again.
+```
+
+When credentials are invalid:
+```text
+Invalid email or password.
+```
+
+When token/session is expired:
+```text
+Session expired or token is invalid. Please run `aiac auth login` and try again.
+```
+
+When backend DB is not ready:
+```text
+... backend database is not ready.
+Start the API server with migrations:
+  aiac server run --migrate
+Then retry.
+```
+
+When backend returns internal HTML error page:
+```text
+... backend returned an internal server error.
+Check backend logs with:
+  aiac server status
+  type %USERPROFILE%\.aiac\server.log
+```
+
+When server startup fails due to missing env var:
+```text
+Server startup failed: missing required environment variable `EMAIL_HOST`.
+Set it in your shell or `.env`, then rerun `aiac server run`.
 ```
 
 ## deployment
@@ -172,9 +243,63 @@ aiac deployment create-model-version --project-id 1 --description "v1" --field-f
 ### `deployment list-model-versions`
 List all model versions.
 
+Options:
+- `--status` (filter by status)
+- `--project-id` (filter by project)
+- `--deployed-only` (only deployed)
+
 Example:
 ```bash
 aiac deployment list-model-versions
+aiac deployment list-model-versions --status approved
+```
+
+### `deployment approve-model-version`
+Approve a model version for deployment.
+
+Options:
+- `--model-version-id` (prompted)
+- `--note` (optional note)
+
+Example:
+```bash
+aiac deployment approve-model-version --model-version-id 4 --note "QA passed"
+```
+
+### `deployment reject-model-version`
+Reject a model version.
+
+Options:
+- `--model-version-id` (prompted)
+- `--note` (optional note)
+
+Example:
+```bash
+aiac deployment reject-model-version --model-version-id 4 --note "Missing bias checks"
+```
+
+### `deployment retire-model-version`
+Retire a model version.
+
+Options:
+- `--model-version-id` (prompted)
+- `--note` (optional note)
+
+Example:
+```bash
+aiac deployment retire-model-version --model-version-id 4 --note "Replaced by v5"
+```
+
+### `deployment list-model-approvals`
+List approval history for a model version.
+
+Options:
+- `--model-version-id` (prompted)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac deployment list-model-approvals --model-version-id 4
 ```
 
 ### `deployment delete-model-version`
@@ -196,6 +321,7 @@ Options:
 - `--user-id` (prompted)
 - `--model-version-id` (prompted)
 - `--port` (prompted)
+- `--auto-preflight/--no-auto-preflight` (default `--auto-preflight`)
 - `--start-worker/--no-start-worker` (default `--start-worker`)
 - `--wait/--no-wait` (default `--wait`)
 - `--poll-interval-seconds` (default `2`)
@@ -209,6 +335,31 @@ Options:
 Example:
 ```bash
 aiac deployment deploy-model-version --user-id 14 --model-version-id 4 --port 6000 --format text
+```
+
+### `deployment preflight`
+Run pre-deployment checks before deploying a model.
+
+Checks:
+- API server reachability
+- Docker CLI and Docker daemon
+- Redis reachability
+- Celery worker availability
+- Optional model version existence
+- Optional local port availability
+
+Options:
+- `--model-version-id` (optional)
+- `--port` (optional)
+- `--redis-host` (default `localhost`)
+- `--redis-port` (default `6379`)
+- `--check-local-port/--no-check-local-port` (default `--check-local-port`)
+- `--format, -f` (`table|json`, default `table`)
+
+Examples:
+```bash
+aiac deployment preflight --model-version-id 4 --port 6000
+aiac deployment preflight --format json
 ```
 
 ### `deployment redeploy-model`
@@ -226,6 +377,7 @@ Example:
 ```bash
 aiac deployment redeploy-model --deployment-id 20
 ```
+
 
 ### `deployment stop-deployment`
 Stop a deployment.
@@ -293,6 +445,13 @@ Options:
 Example:
 ```bash
 aiac deployment services --deployment-id 20 --probe --format table
+```
+
+Runtime capabilities:
+- Runtime exposes `GET /capabilities` for NLP/CV support and dependency checks.
+- Example:
+```bash
+curl http://127.0.0.1:8003/capabilities
 ```
 
 ### `deployment traffic-shadow`
@@ -390,10 +549,19 @@ List alerts for deployment.
 
 Options:
 - `--deployment-id` (prompted)
+- `--include-resolved` (include resolved alerts)
+- `--limit, -l` (max alerts displayed)
+- `--only-type` (filter by alert type)
+- `--only-severity` (filter by severity: low|medium|high)
+- `--since-hours` (only alerts in last N hours)
+- `--since` (only alerts after ISO timestamp)
+- `--format, -f` (`table|json`, default `table`)
 
 Example:
 ```bash
 aiac monitoring alert --deployment-id 18
+aiac monitoring alert --deployment-id 18 --only-severity high --since-hours 24
+aiac monitoring alert --deployment-id 18 --only-type latency --since 2026-02-25T10:00:00Z
 ```
 
 ### `monitoring resolve-alert`
@@ -404,6 +572,9 @@ Options:
 - `--deployment-id, -d` (to select alert interactively)
 - `--include-resolved` (include already resolved alerts when selecting)
 - `--yes, -y` (skip confirmation)
+
+Notes:
+- After resolving interactively, CLI prints the resolved alert summary (type/message/deployment).
 
 Examples:
 ```bash
@@ -561,6 +732,142 @@ Trigger policy engine execution immediately.
 Example:
 ```bash
 aiac governance run-policy-engine
+```
+
+## admin
+
+### `admin list-users`
+List all users (admin only).
+
+Options:
+- `--role` (filter by role)
+- `--active` (only active users)
+- `--inactive` (only inactive users)
+- `--staff` (only staff users)
+- `--email` (filter by email substring)
+- `--username` (filter by username substring)
+- `--limit, -l` (limit results)
+- `--offset` (skip first N results)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac admin list-users
+aiac admin list-users --role admin --active
+aiac admin list-users --email "@gmail.com" --limit 20
+aiac admin list-users --username dad --offset 10
+```
+
+### `admin user`
+Show details for one user.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin user --user-id 7
+```
+
+### `admin promote-admin`
+Promote a user to admin.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin promote-admin --user-id 7
+```
+
+### `admin demote-admin`
+Demote a user to client.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin demote-admin --user-id 7
+```
+
+### `admin activate-user`
+Activate a user account.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin activate-user --user-id 7
+```
+
+### `admin deactivate-user`
+Deactivate a user account.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin deactivate-user --user-id 7
+```
+
+### `admin soft-delete-user`
+Soft delete (deactivate) a user account.
+
+Options:
+- `--user-id` (prompted)
+
+Example:
+```bash
+aiac admin soft-delete-user --user-id 7
+```
+
+### `admin reset-password`
+Reset a user password.
+
+Options:
+- `--user-id` (prompted)
+- `--password` (prompted, hidden)
+
+Example:
+```bash
+aiac admin reset-password --user-id 7
+```
+
+### `admin list-audits`
+List audit logs (admin only).
+
+Options:
+- `--limit, -l` (default `50`)
+- `--format, -f` (`table|json`, default `table`)
+
+Example:
+```bash
+aiac admin list-audits --limit 100
+```
+
+### `admin export-audits`
+Export audit logs to CSV.
+
+Options:
+- `--out` (CSV file path, default `audit_logs.csv`)
+
+Example:
+```bash
+aiac admin export-audits --out audit_logs.csv
+```
+
+### `admin export-audits-json`
+Export audit logs to JSON.
+
+Options:
+- `--out` (JSON file path, default `audit_logs.json`)
+
+Example:
+```bash
+aiac admin export-audits-json --out audit_logs.json
 ```
 
 ### `governance debug-policy-engine`

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -135,7 +136,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'assets']
+_assets_dir = BASE_DIR / 'assets'
+STATICFILES_DIRS = [_assets_dir] if _assets_dir.exists() else []
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -145,17 +147,39 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DJANGO_ALLOW_ALL_ORIGINS = True
 AYTH_USER_MODEL = 'users.User'
-import os
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME' : os.getenv('DB_Name'),
-        'USER' : os.getenv('Username'),
-        'PASSWORD' : os.getenv('Password'),
-        'HOST' : os.getenv('Host'),
-        'PORT' : os.getenv('Port'),
+db_name = os.getenv('DB_Name')
+db_user = os.getenv('Username')
+db_password = os.getenv('Password')
+db_host = os.getenv('Host')
+db_port = os.getenv('Port', '5432')
+
+# Use PostgreSQL only when all required credentials are configured.
+if all([db_name, db_user, db_password, db_host]):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': db_name,
+            'USER': db_user,
+            'PASSWORD': db_password,
+            'HOST': db_host,
+            'PORT': db_port,
+        }
     }
-}
+else:
+    env_db_path = (os.getenv("AIAC_DB_PATH") or "").strip()
+    if env_db_path:
+        sqlite_path = Path(env_db_path).expanduser()
+    elif "site-packages" in str(BASE_DIR).lower():
+        sqlite_path = Path.home() / ".aiac" / "db.sqlite3"
+    else:
+        sqlite_path = BASE_DIR / 'db.sqlite3'
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': sqlite_path,
+        }
+    }
 
 REST_FRAMEWORK ={
     'DEFAULT_AUTHENTICATION_CLASSES':(
@@ -175,12 +199,15 @@ SPECTACULAR_SETTINGS = {
 
 from decouple import config
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_HOST = config('EMAIL_HOST')
-EMAIL_PORT = config('EMAIL_PORT', cast=int)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config(
+    'DEFAULT_FROM_EMAIL',
+    default=EMAIL_HOST_USER or 'AI Accelerator <noreply@aiaccelerator.local>'
+)
 
 from datetime import timedelta
 

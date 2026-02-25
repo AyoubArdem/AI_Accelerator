@@ -165,7 +165,7 @@
         <div class="brand-row">
             <div class="brand">
                 <div class="logo-wrap">
-                    <img class="logo" src="{% static 'logo.png' %}" alt="AIAC logo" />
+                    <img class="logo" src="{% static 'users/logo.png' %}" alt="AIAC logo" />
                 </div>
                 <span>AIAC - AI Accelerator</span>
             </div>
@@ -181,10 +181,12 @@
         </div>
         <div class="hint" id="copy-status">Use these commands in your terminal after login:</div>
         <div class="code">aiac --help
+aiac server --help
 aiac auth --help
 aiac deployment --help
 aiac monitoring --help
-aiac governance --help</div>
+aiac governance --help
+aiac admin --help</div>
     </main>
     <script>
         function copyCmd(cmd) {

@@ -15,16 +15,47 @@ class Projet(models.Model):
 
 
 class ModelVersion(models.Model):
+    class StatusChoices(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        RETIRED = "retired", "Retired"
     projet = models.ForeignKey(Projet, on_delete=models.CASCADE, related_name='model_versions') 
     description = models.TextField(blank=True, null=True)
     field_file = models.FileField(upload_to='model_versions/')
     sample_data = models.JSONField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.DRAFT)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_model_versions",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deployed = models.BooleanField(default=False)
 
     def __str__(self):
         return f'Version {self.id} of {self.projet.name}'
+
+
+class ModelApproval(models.Model):
+    DECISIONS = [
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("retired", "Retired"),
+    ]
+    model_version = models.ForeignKey(ModelVersion, on_delete=models.CASCADE, related_name="approvals")
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    decision = models.CharField(max_length=20, choices=DECISIONS)
+    note = models.TextField(blank=True, null=True)
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.model_version_id} {self.decision} by {self.decided_by_id}"
 
 
 class Deployment(models.Model):

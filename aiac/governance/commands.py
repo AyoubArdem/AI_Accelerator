@@ -8,6 +8,32 @@ from urllib.parse import urlencode
 governance_api_app = typer.Typer(help="Governance related commands for AIAC.")
 
 
+def _is_html_error_blob(text: str) -> bool:
+    t = (text or "").lower()
+    return "<!doctype html>" in t or "<html" in t
+
+
+def _friendly_backend_error(prefix: str, error_text: str) -> str:
+    text = str(error_text or "")
+    if "API server is not reachable" in text:
+        return text
+    if "OperationalError" in text:
+        return (
+            f"{prefix}: backend database is not ready.\n"
+            "Start the API server with migrations:\n"
+            "  aiac server run --migrate\n"
+            "Then retry the command."
+        )
+    if _is_html_error_blob(text):
+        return (
+            f"{prefix}: backend returned an internal server error.\n"
+            "Check backend logs with:\n"
+            "  aiac server status\n"
+            "  type %USERPROFILE%\\.aiac\\server.log"
+        )
+    return f"{prefix}: {text}"
+
+
 def _friendly_apply_policy_error(error_text: str) -> str:
     if '"deployment"' in error_text and "does not exist" in error_text:
         return (
@@ -22,7 +48,7 @@ def _friendly_apply_policy_error(error_text: str) -> str:
         and ("already exists" in error_text or "must make a unique set" in error_text)
     ):
         return "This policy is already applied to that deployment."
-    return f"Failed to apply policy: {error_text}"
+    return _friendly_backend_error("Failed to apply policy", error_text)
 
 
 def _prompt_manual_rules() -> dict:
@@ -117,8 +143,8 @@ def _prompt_rules() -> dict:
 
 @governance_api_app.command("create-policy")
 def create_policy(
-    name: str,
-    policy_type: str,
+    name: str = typer.Argument(None, help="Policy name."),
+    policy_type: str = typer.Argument(None, help="Policy type (deployment or drift)."),
     description: str = typer.Option(
         "",
         "--description",
@@ -137,6 +163,17 @@ def create_policy(
     client = AIACClient(base_path="governance")
 
     try:
+        if not name:
+            name = typer.prompt("Policy name").strip()
+        if not policy_type:
+            policy_type = typer.prompt("Policy type (deployment or drift)").strip()
+        policy_type = policy_type.strip().lower()
+        if policy_type == "monitoring":
+            policy_type = "drift"
+        if policy_type not in {"deployment", "drift"}:
+            typer.echo("Invalid policy type. Use deployment or drift.")
+            return
+
         if rules is None:
             rules_data = _prompt_rules()
         else:
@@ -180,7 +217,7 @@ def create_policy(
     except json.JSONDecodeError as e:
         typer.echo(f"Failed to create policy: invalid rules JSON ({e.msg}).")
     except Exception as e:
-        typer.echo(f"Failed to create policy: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to create policy", str(e)))
 
 @governance_api_app.command("list-policies")
 def list_policies():
@@ -221,7 +258,7 @@ def list_policies():
 
         console.print(table)
     except Exception as e:
-        typer.echo(f"Failed to retrieve policies: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to retrieve policies", str(e)))
 
 @governance_api_app.command("delete-policy")
 def delete_policy(policy_id: int):
@@ -232,7 +269,7 @@ def delete_policy(policy_id: int):
         client.delete(f"/policies/{policy_id}/")
         typer.echo(f"Policy with ID '{policy_id}' deleted successfully.")
     except Exception as e:
-        typer.echo(f"Failed to delete policy: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to delete policy", str(e)))
 
 @governance_api_app.command("view-violations")
 def view_violations():
@@ -243,7 +280,11 @@ def view_violations():
         response = client.get("/policy-violations/")
         violations = response.json()
         if not violations:
-            typer.echo("No violations found.")
+            typer.echo("No violations found yet.")
+            typer.echo("Tips:")
+            typer.echo("- Run `aiac governance run-policy-engine` to evaluate current policies.")
+            typer.echo("- Ensure policies are applied to deployments with `aiac governance apply-policy`.")
+            typer.echo("- Use `aiac governance debug-policy-engine --policy <id>` for detailed evaluation.")
             return
         table = Table(title="Policy Violations")
         table.add_column("Deployment", style="cyan", no_wrap=True)
@@ -263,7 +304,7 @@ def view_violations():
             )
         console.print(table)
     except Exception as e:
-        typer.echo(f"Failed to retrieve violations: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to retrieve violations", str(e)))
 
 @governance_api_app.command("metrics")
 def violation_metrics():
@@ -291,7 +332,7 @@ def violation_metrics():
         for key in keys:
             typer.echo(f"{key}: {metrics.get(key, 0)}")
     except Exception as e:
-        typer.echo(f"Failed to retrieve violation metrics: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to retrieve violation metrics", str(e)))
 
 
 @governance_api_app.command("run-policy-engine")
@@ -305,18 +346,21 @@ def run_policy_engine_cmd():
         if payload.get("task_id"):
             typer.echo(f"task_id: {payload.get('task_id')}")
     except Exception as e:
-        typer.echo(f"Failed to run policy engine: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to run policy engine", str(e)))
 
 
 @governance_api_app.command("debug-policy-engine")
 def debug_policy_engine(
-    policy_id: int = typer.Option(..., "--policy", "-p", help="Policy ID to inspect."),
+    policy_id: int = typer.Option(None, "--policy", "-p", help="Policy ID to inspect."),
     deployment_id: int = typer.Option(None, "--deployment", "-d", help="Optional deployment ID filter."),
     limit: int = typer.Option(50, "--limit", "-l", help="Max logs to inspect (1-200)."),
 ):
     """Debug policy evaluation to understand why violations are or are not produced."""
     client = AIACClient(base_path="governance")
     try:
+        if policy_id is None:
+            policy_id = typer.prompt("Policy ID", type=int)
+
         params = {"policy": policy_id, "limit": max(1, min(limit, 200))}
         if deployment_id is not None:
             params["deployment"] = deployment_id
@@ -367,7 +411,7 @@ def debug_policy_engine(
             )
         console.print(table)
     except Exception as e:
-        typer.echo(f"Failed to debug policy engine: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to debug policy engine", str(e)))
 
 
 @governance_api_app.command("policy-insights")
@@ -466,12 +510,12 @@ def policy_insights(
             for rec in recommendations:
                 typer.echo(f"  * {rec}")
     except Exception as e:
-        typer.echo(f"Failed to get policy insights: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to get policy insights", str(e)))
 
 
 @governance_api_app.command("apply-policy")
 def apply_policy(
-    policy_id: int,
+    policy_id: int = typer.Argument(None, help="Policy ID."),
     deployment_id: int = typer.Argument(
         None,
         help="Deployment ID. If omitted, you will be prompted.",
@@ -479,6 +523,8 @@ def apply_policy(
 ):
     """Apply a policy to a deployment."""
     client = AIACClient(base_path="governance")
+    if policy_id is None:
+        policy_id = typer.prompt("Policy ID", type=int)
     if deployment_id is None:
         deployment_id = typer.prompt("Enter deployment ID", type=int)
     data = {
@@ -489,7 +535,12 @@ def apply_policy(
         payload = response.json()
         typer.echo(f"Policy '{policy_id}' applied to deployment '{deployment_id}' successfully.")
         typer.echo(f"applied_at: {payload.get('applied_at')}")
-        typer.echo(f"applied_by: {payload.get('applied_by')}")
+        applied_by_username = payload.get("applied_by_username")
+        applied_by_id = payload.get("applied_by")
+        if applied_by_username:
+            typer.echo(f"applied_by: {applied_by_username}")
+        else:
+            typer.echo(f"applied_by: {applied_by_id}")
     except Exception as e:
         typer.echo(_friendly_apply_policy_error(str(e)))
 
@@ -524,4 +575,4 @@ def alert_logs():
             )
         console.print(table)
     except Exception as e:
-        typer.echo(f"Failed to retrieve alert logs: {str(e)}")
+        typer.echo(_friendly_backend_error("Failed to retrieve alert logs", str(e)))

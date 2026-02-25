@@ -1,6 +1,6 @@
 from django.conf import settings
 from rest_framework import serializers
-from .models import Deployment, ModelVersion, Projet
+from .models import Deployment, ModelVersion, Projet, ModelApproval
 
 class ProjetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +15,21 @@ class ModelVersionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ModelVersion
-        fields = ['id', 'projet', 'project_id', 'project', 'description', 'field_file', 'created_at', 'updated_at', 'deployed']
+        fields = [
+            'id',
+            'projet',
+            'project_id',
+            'project',
+            'description',
+            'field_file',
+            'status',
+            'approved_by',
+            'approved_at',
+            'created_at',
+            'updated_at',
+            'deployed',
+        ]
+        read_only_fields = ['status', 'approved_by', 'approved_at']
 
     def validate(self, attrs):
         if not attrs.get("projet") and not attrs.get("project_id") and not attrs.get("project"):
@@ -27,6 +41,7 @@ class ModelVersionSerializer(serializers.ModelSerializer):
             project_id = validated_data.pop("project_id", None) or validated_data.pop("project", None)
             if project_id is not None:
                 validated_data["projet"] = Projet.objects.get(pk=project_id)
+        validated_data.setdefault("status", ModelVersion.StatusChoices.DRAFT)
         return super().create(validated_data)
 
     def validate_field_file(self, value):
@@ -89,5 +104,11 @@ class DeploymentSerializer(serializers.ModelSerializer):
             "predict": f"{base_url}/predict",
             "predict_decision": f"{base_url}/predict-decision",
         }
+
+
+class ModelApprovalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModelApproval
+        fields = ["id", "model_version", "decided_by", "decision", "note", "decided_at"]
 
        

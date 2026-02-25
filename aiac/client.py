@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 class AIACClient:
     _server_autostart_attempted = False
+    _autostart_last_error = ""
+    _refresh_expired_notice_printed = False
 
     def __init__(self, base_path: str = ""):
         self.config = get_config()
@@ -29,7 +31,9 @@ class AIACClient:
         try:
             resp = requests.post(refresh_url, json={"refresh": self.tokens["refresh"]})
             if resp.status_code != 200:
-                print_info("Refresh token expired. Please login again.")
+                if not AIACClient._refresh_expired_notice_printed:
+                    print_info("Session expired. Please run `aiac auth login`.")
+                    AIACClient._refresh_expired_notice_printed = True
                 return False
             access = resp.json().get("access")
             if not access:
@@ -58,6 +62,7 @@ class AIACClient:
             return False
 
         AIACClient._server_autostart_attempted = True
+        AIACClient._autostart_last_error = ""
         _, host, port = self._local_server_addr()
         command = [
             sys.executable,
@@ -68,7 +73,28 @@ class AIACClient:
             "--settings=AI_Accelerator.settings",
             "--noreload",
         ]
+        migrate_command = [
+            sys.executable,
+            "-m",
+            "django",
+            "migrate",
+            "--noinput",
+            "--settings=AI_Accelerator.settings",
+        ]
         try:
+            migrate_proc = subprocess.run(
+                migrate_command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if migrate_proc.returncode != 0:
+                details = (migrate_proc.stderr or migrate_proc.stdout or "").strip()
+                if details:
+                    AIACClient._autostart_last_error = details[:400]
+                else:
+                    AIACClient._autostart_last_error = "Automatic migration failed."
+                return False
             subprocess.Popen(
                 command,
                 stdout=subprocess.DEVNULL,
@@ -77,8 +103,21 @@ class AIACClient:
             print_info(f"API server not reachable. Starting local server on {host}:{port}...")
             time.sleep(2.0)
             return True
-        except Exception:
+        except Exception as exc:
+            AIACClient._autostart_last_error = str(exc)
             return False
+
+    def _server_help_message(self) -> str:
+        if self._can_autostart_local_server():
+            _, host, port = self._local_server_addr()
+            base_message = (
+                f"API server is not reachable at {self.base_url}. "
+                f"Start it with `aiac server run --host {host} --port {port}` and try again."
+            )
+            if AIACClient._autostart_last_error:
+                return f"{base_message} Auto-bootstrap error: {AIACClient._autostart_last_error}"
+            return base_message
+        return f"API server is not reachable at {self.base_url}."
 
     def api_request(self, endpoint: str, method: str = "GET", data: dict = None, files: dict = None, _retried: bool = False, _autostart_retried: bool = False):
         endpoint_url = self._build_url(endpoint)
@@ -120,13 +159,7 @@ class AIACClient:
                     _retried=_retried,
                     _autostart_retried=True,
                 )
-            if self._can_autostart_local_server():
-                _, host, port = self._local_server_addr()
-                raise Exception(
-                    f"Network error: {str(e)}. "
-                    f"Try running `aiac server run --host {host} --port {port}`."
-                ) from e
-            raise Exception(f"Network error: {str(e)}") from e
+            raise Exception(self._server_help_message()) from e
 
     def post(self, endpoint: str, json: dict = None, files: dict = None):
         return self.api_request(endpoint, method="POST", data=json, files=files)

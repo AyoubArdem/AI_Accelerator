@@ -1,22 +1,41 @@
-from django.shortcuts import render
-from .models import Deployment, ModelVersion, Projet
-from .serializers import DeploymentSerializer, ModelVersionSerializer, ProjetSerializer
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from .models import Deployment, ModelVersion, Projet, ModelApproval
+from .serializers import DeploymentSerializer, ModelVersionSerializer, ProjetSerializer, ModelApprovalSerializer
 from rest_framework import viewsets , generics
+from rest_framework import status as drf_status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import generics 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from .Tasks import deploy_model_task
 from celery import current_app
 from monitoring.models import DeploymentStats, DeploymentAlert, DataDrift
 import requests
 import time
 import numpy as np
-import joblib
+try:
+    import joblib
+except ModuleNotFoundError:
+    joblib = None
 import pickle
 from monitoring.models import Samples
 
 # Create your views here.
+
+def _sync_model_version_deployed(model_version: ModelVersion) -> None:
+    try:
+        has_active = Deployment.objects.filter(
+            model_version=model_version,
+            status=Deployment.StatusChoices.ACTIVE,
+        ).exists()
+        if model_version.deployed != has_active:
+            model_version.deployed = has_active
+            model_version.save(update_fields=["deployed"])
+    except Exception:
+        # Non-critical metadata update.
+        pass
 
 def _has_active_celery_worker() -> bool:
     try:
@@ -27,6 +46,10 @@ def _has_active_celery_worker() -> bool:
         return bool(ping_result)
     except Exception:
         return False
+
+
+def _is_admin(user) -> bool:
+    return bool(getattr(user, "is_superuser", False) or getattr(user, "is_staff", False) or getattr(user, "role", "") == "admin")
 
 
 def _runtime_urls_for_deployment(deployment: Deployment) -> dict:
@@ -64,10 +87,64 @@ class ModelVersionDelete(generics.DestroyAPIView):
     serializer_class = ModelVersionSerializer
     permission_classes = [IsAuthenticated]
 
+
+class ModelVersionApprovalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, model_version_id, decision):
+        if not _is_admin(request.user):
+            return Response({"error": "Admin access required."}, status=drf_status.HTTP_403_FORBIDDEN)
+        model_version = get_object_or_404(ModelVersion, pk=model_version_id)
+        if decision not in {"approved", "rejected", "retired"}:
+            return Response({"error": "Invalid decision."}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+        note = request.data.get("note", "")
+        model_version.status = decision
+        if decision == "approved":
+            model_version.approved_by = request.user
+            model_version.approved_at = timezone.now()
+        else:
+            model_version.approved_by = None
+            model_version.approved_at = None
+        model_version.save(update_fields=["status", "approved_by", "approved_at"])
+
+        ModelApproval.objects.create(
+            model_version=model_version,
+            decided_by=request.user,
+            decision=decision,
+            note=note,
+        )
+        return Response(
+            {
+                "message": f"Model version {model_version_id} marked as {decision}.",
+                "status": model_version.status,
+                "approved_by": model_version.approved_by_id,
+                "approved_at": model_version.approved_at,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class ModelApprovalListView(generics.ListAPIView):
+    serializer_class = ModelApprovalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        model_version_id = self.kwargs.get("model_version_id")
+        return ModelApproval.objects.filter(model_version_id=model_version_id).order_by("-decided_at")
+
 class CreateDeploymentView(viewsets.ModelViewSet):
     queryset = Deployment.objects.all()
     serializer_class = DeploymentSerializer
     permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        model_version = serializer.validated_data.get("model_version")
+        if model_version and model_version.status != ModelVersion.StatusChoices.APPROVED:
+            raise ValidationError({"model_version": "Model version must be approved before deployment."})
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         deployment = serializer.save(status=Deployment.StatusChoices.PENDING)
@@ -76,9 +153,24 @@ class CreateDeploymentView(viewsets.ModelViewSet):
                 deploy_model_task.delay(deployment.id)
             else:
                 # No worker connected: run synchronously so deployment does not stay queued forever.
-                deploy_model_task.apply(args=[deployment.id])
+                result = deploy_model_task.apply(args=[deployment.id])
+                payload = result.result if result is not None else {}
+                if isinstance(payload, dict) and payload.get("status") == "failed":
+                    deployment.status = Deployment.StatusChoices.FAILED
+                    deployment.logs = str(payload.get("error", "Deployment failed"))
+                    deployment.save(update_fields=["status", "logs"])
         except Exception:
-            deploy_model_task.apply(args=[deployment.id])
+            try:
+                result = deploy_model_task.apply(args=[deployment.id])
+                payload = result.result if result is not None else {}
+                if isinstance(payload, dict) and payload.get("status") == "failed":
+                    deployment.status = Deployment.StatusChoices.FAILED
+                    deployment.logs = str(payload.get("error", "Deployment failed"))
+                    deployment.save(update_fields=["status", "logs"])
+            except Exception as task_error:
+                deployment.status = Deployment.StatusChoices.FAILED
+                deployment.logs = f"Deployment task failed: {task_error}"
+                deployment.save(update_fields=["status", "logs"])
 
 class ListDeploymentsView(generics.ListAPIView):
     serializer_class = DeploymentSerializer
@@ -135,6 +227,7 @@ class StopDeploymentView(generics.GenericAPIView):
 
             deployment.status = Deployment.StatusChoices.STOP
             deployment.save()
+            _sync_model_version_deployed(deployment.model_version)
 
             return Response({"message": "Deployment stopped"})
 
@@ -165,6 +258,7 @@ class DeleteDeploymentView(generics.GenericAPIView):
 
             deployment.status = Deployment.StatusChoices.DELETED
             deployment.save()
+            _sync_model_version_deployed(deployment.model_version)
 
             return Response({"message": "Deployment deleted"})
 
@@ -300,25 +394,27 @@ class DeploymentAdvisorAPIView(APIView):
 
 
 def _load_model_for_shadow(path: str):
-    try:
-        return joblib.load(path), ""
-    except Exception:
+    if joblib is not None:
         try:
-            with open(path, "rb") as f:
-                return pickle.load(f), ""
-        except ModuleNotFoundError as e:
-            missing_module = str(e).replace("No module named ", "").strip().strip("'\"")
-            if missing_module == "sklearn":
-                return None, (
-                    "Missing dependency `scikit-learn` in backend environment. "
-                    "Install it, then retry traffic-shadow."
-                )
+            return joblib.load(path), ""
+        except Exception:
+            pass
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f), ""
+    except ModuleNotFoundError as e:
+        missing_module = str(e).replace("No module named ", "").strip().strip("'\"")
+        if missing_module == "sklearn":
             return None, (
-                f"Missing dependency `{missing_module}` in backend environment. "
+                "Missing dependency `scikit-learn` in backend environment. "
                 "Install it, then retry traffic-shadow."
             )
-        except Exception as e:
-            return None, f"Unsupported or unreadable model format: {e}"
+        return None, (
+            f"Missing dependency `{missing_module}` in backend environment. "
+            "Install it, then retry traffic-shadow."
+        )
+    except Exception as e:
+        return None, f"Unsupported or unreadable model format: {e}"
 
 
 def _predict_batch(model, features: list[list[float]]):
@@ -512,6 +608,3 @@ class DeploymentServiceCatalogAPIView(APIView):
             },
             status=200,
         )
-
-
-

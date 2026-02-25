@@ -27,9 +27,11 @@ class PolicySerializer(serializers.ModelSerializer):
         return value
 
 class PolicyAssignmentSerializer(serializers.ModelSerializer):
+    applied_by_username = serializers.CharField(source="applied_by.username", read_only=True)
+
     class Meta:
         model = PolicyAssignment
-        fields = ["id", "policy", "deployment", "applied_by", "applied_at"]
+        fields = ["id", "policy", "deployment", "applied_by", "applied_by_username", "applied_at"]
         read_only_fields = ["applied_at", "applied_by"]
 
     def validate(self, attrs):
