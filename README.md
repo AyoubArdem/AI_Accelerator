@@ -10,7 +10,7 @@
 **AI Accelerator** is an end-to-end platform designed to **deploy, monitor, and govern machine learning models in production** in a secure, scalable, and auditable way.
 
 [![PyPI version](https://img.shields.io/pypi/v/ai-accelerator?cacheSeconds=0)](https://pypi.org/project/ai-accelerator/)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10-3.12](https://img.shields.io/badge/python-3.10--3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
 The project aims to be a **core MLOps foundation** for companies, ML teams, and developers who want to move from experimental notebooks to **real production-grade AI systems**.
@@ -438,27 +438,29 @@ Commands use **Rich** library for beautiful terminal output:
 The platform provides REST APIs for all functionality. Key endpoints include:
 
 ### Authentication
-- `POST /api/auth/login/` - User login
-- `POST /api/auth/register/` - User registration
-- `POST /api/auth/logout/` - User logout
+- `POST /api/users/register/` - User registration
+- `POST /api/users/login/` - User login
+- `POST /api/users/logout/` - User logout
+- `GET /api/users/me/` - Current user profile
 
 ### Deployment Management
-- `GET /api/deployments/projects/` - List projects
-- `POST /api/deployments/projects/` - Create project
-- `GET /api/deployments/versions/` - List model versions
-- `POST /api/deployments/versions/` - Create model version
-- `POST /api/deployments/deploy/` - Deploy model
-- `GET /api/deployments/` - List deployments
+- `GET /api/deployment/projects/` - List projects
+- `POST /api/deployment/projects/` - Create project
+- `GET /api/deployment/model-versions/` - List model versions
+- `POST /api/deployment/model-versions/` - Create model version
+- `GET /api/deployment/deployments/list/` - List deployments
+- `POST /api/deployment/deployments/` - Deploy model version
 
 ### Monitoring
-- `GET /api/monitoring/stats/` - Deployment statistics
-- `POST /api/monitoring/drift/` - Check data drift
-- `GET /api/monitoring/alerts/` - List alerts
+- `GET /api/monitoring/deployments/<id>/stats/` - Deployment statistics
+- `GET /api/monitoring/deployments/<id>/records/` - Deployment records
+- `GET /api/monitoring/deployments/<id>/alerts/` - Deployment alerts
+- `POST /api/monitoring/drift/<model_version_id>/` - Detect drift
 
 ### Governance
 - `GET /api/governance/policies/` - List policies
 - `POST /api/governance/policies/` - Create policy
-- `GET /api/governance/violations/` - List violations
+- `GET /api/governance/policy-violations/` - List violations
 
 ## Authentication & Security
 
@@ -539,18 +541,21 @@ Create a `.env` file for configuration:
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@db:5432/ai_accelerator
+DB_NAME=ai_accelerator
+DB_USER=ai_user
+DB_PASSWORD=ai_password
+DB_HOST=postgres
+DB_PORT=5432
 
 # Redis
-REDIS_URL=redis://redis:6379/0
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+CACHE_URL=redis://redis:6379/1
 
 # Django
 SECRET_KEY=your-secret-key-here
 DEBUG=False
 ALLOWED_HOSTS=localhost,127.0.0.1
-
-# JWT
-JWT_SECRET_KEY=your-jwt-secret
 ```
 
 ### Building Custom Images
@@ -561,15 +566,21 @@ docker build -t ai-accelerator:latest .
 
 # Run with custom configuration
 docker run -p 8000:8000 \
-  -e DATABASE_URL=postgresql://... \
-  -e REDIS_URL=redis://... \
+  -e DB_NAME=ai_accelerator \
+  -e DB_USER=ai_user \
+  -e DB_PASSWORD=ai_password \
+  -e DB_HOST=postgres \
+  -e DB_PORT=5432 \
+  -e CELERY_BROKER_URL=redis://redis:6379/0 \
+  -e CELERY_RESULT_BACKEND=redis://redis:6379/0 \
+  -e CACHE_URL=redis://redis:6379/1 \
   ai-accelerator:latest
 ```
 ## Requirements & Dependencies
 
 ### System Requirements
 
-- **Python**: 3.8 or higher
+- **Python**: 3.10 to 3.12
 - **Docker**: For containerized model deployment
 - **PostgreSQL**: Primary database (or SQLite for development)
 - **Redis**: For Celery task queue and caching
@@ -705,25 +716,25 @@ To test protected endpoints, you'll need to:
 
 ### Roadmap (Future Releases)
 
-#### v0.2.0 - Enhanced Monitoring
+#### v1.1.0 - Enhanced Monitoring
 - [ ] Advanced drift visualization
 - [ ] Custom monitoring metrics
 - [ ] Alert notification system (email/webhooks)
 - [ ] Performance benchmarking tools
 
-#### v0.3.0 - Web Dashboard
+#### v1.2.0 - Web Dashboard
 - [ ] React-based admin interface
 - [ ] Real-time monitoring dashboard
 - [ ] Model performance analytics
 - [ ] Governance policy editor
 
-#### v0.4.0 - Enterprise Features
+#### v1.3.0 - Enterprise Features
 - [ ] Multi-tenant architecture
 - [ ] Advanced RBAC with custom roles
 - [ ] Audit log export and compliance reports
 - [ ] Integration with cloud platforms (AWS, GCP, Azure)
 
-#### v0.5.0 - Automation & Pipelines
+#### v1.4.0 - Automation & Pipelines
 - [ ] Automated model retraining
 - [ ] CI/CD pipeline integration
 - [ ] A/B testing framework
@@ -850,7 +861,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
