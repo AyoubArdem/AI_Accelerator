@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 import typer
 from pathlib import Path
 from aiac.client import AIACClient
@@ -12,6 +13,18 @@ def _friendly_admin_error(prefix: str, error_text: str) -> str:
     txt = str(error_text or "")
     if "API server is not reachable" in txt:
         return txt
+    if "403" in txt and "Admin access required" in txt:
+        match = re.search(r"Contact admin:\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", txt)
+        contact = match.group(1) if match else None
+        contact_line = (
+            f"Contact admin: {contact}"
+            if contact
+            else "Login with an admin account, or ask an admin to promote your account."
+        )
+        return (
+            f"{prefix}: admin access is required for this command.\n"
+            f"{contact_line}"
+        )
     if "404" in txt and "<!DOCTYPE html>" in txt:
         return (
             f"{prefix}: admin endpoints not found on the server.\n"

@@ -135,6 +135,84 @@ class PolicyViolationViewSet(viewsets.ReadOnlyModelViewSet):
         }
         return Response(data)
 
+    @action(detail=False, methods=["post"], url_path="resolve-all")
+    def resolve_all(self, request):
+        deployment_id_raw = request.data.get("deployment")
+        policy_id_raw = request.data.get("policy")
+
+        deployment_id = None
+        policy_id = None
+        if deployment_id_raw not in (None, ""):
+            try:
+                deployment_id = int(deployment_id_raw)
+            except (TypeError, ValueError):
+                return Response({"detail": "deployment must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+        if policy_id_raw not in (None, ""):
+            try:
+                policy_id = int(policy_id_raw)
+            except (TypeError, ValueError):
+                return Response({"detail": "policy must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = PolicyViolation.objects.select_related("deployment").filter(resolved=False)
+        if deployment_id is not None:
+            queryset = queryset.filter(deployment_id=deployment_id)
+        if policy_id is not None:
+            queryset = queryset.filter(policy_id=policy_id)
+
+        if not _is_governance_admin(request.user):
+            queryset = queryset.filter(deployment__user=request.user)
+
+        to_update = list(queryset.values_list("id", flat=True))
+        if not to_update:
+            return Response(
+                {"message": "No unresolved violations matched the filter.", "resolved_count": 0},
+                status=status.HTTP_200_OK,
+            )
+
+        updated = queryset.update(resolved=True)
+        return Response(
+            {
+                "message": f"Resolved {updated} violation(s).",
+                "resolved_count": updated,
+                "violation_ids": to_update,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="resolve")
+    def resolve(self, request, pk=None):
+        violation = self.get_object()
+        if not _is_governance_admin(request.user) and violation.deployment.user_id != request.user.id:
+            return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+        if violation.resolved:
+            return Response(
+                {"message": "Violation is already resolved.", "violation_id": violation.id},
+                status=status.HTTP_200_OK,
+            )
+        violation.resolved = True
+        violation.save(update_fields=["resolved"])
+        return Response(
+            {"message": "Violation resolved successfully.", "violation_id": violation.id},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="reopen")
+    def reopen(self, request, pk=None):
+        violation = self.get_object()
+        if not _is_governance_admin(request.user) and violation.deployment.user_id != request.user.id:
+            return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+        if not violation.resolved:
+            return Response(
+                {"message": "Violation is already open.", "violation_id": violation.id},
+                status=status.HTTP_200_OK,
+            )
+        violation.resolved = False
+        violation.save(update_fields=["resolved"])
+        return Response(
+            {"message": "Violation reopened successfully.", "violation_id": violation.id},
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=False, methods=["post"], url_path="run-engine")
     def run_engine(self, request):
         task = run_policy_engine.delay()

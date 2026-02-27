@@ -15,6 +15,15 @@ def _is_html_error_blob(text: str) -> bool:
 
 def _friendly_backend_error(prefix: str, error_text: str) -> str:
     text = str(error_text or "")
+    lowered = text.lower()
+    if (
+        "401" in lowered
+        or "token_not_valid" in lowered
+        or "given token not valid" in lowered
+        or "token is expired" in lowered
+        or "user_not_found" in lowered
+    ):
+        return "Session expired or authentication is invalid. Please run `aiac auth login` and try again."
     if "API server is not reachable" in text:
         return text
     if "OperationalError" in text:
@@ -49,6 +58,65 @@ def _friendly_apply_policy_error(error_text: str) -> str:
     ):
         return "This policy is already applied to that deployment."
     return _friendly_backend_error("Failed to apply policy", error_text)
+
+
+def _friendly_violation_action_error(action: str, error_text: str, violation_id: int) -> str:
+    text = str(error_text or "")
+    lowered = text.lower()
+    if "404" in lowered and "no policyviolation matches" in lowered:
+        return (
+            f"Violation '{violation_id}' was not found or is not accessible with the current account.\n"
+            "Run `aiac auth me` to confirm your account, then run `aiac governance view-violations` and use an ID visible in that same session."
+        )
+    if "404" in lowered and '"detail":"not found' in lowered:
+        return (
+            f"Cannot {action} violation: this backend does not expose the `{action}` endpoint yet.\n"
+            "Restart/update the API server, then retry."
+        )
+    if "404" in lowered and "not found" in lowered:
+        return (
+            f"Violation '{violation_id}' was not found or is not accessible with the current account.\n"
+            "Run `aiac auth me` to confirm your account, then run `aiac governance view-violations` and use an ID visible in that same session."
+        )
+    if "403" in lowered and "access denied" in lowered:
+        return (
+            f"You don't have permission to {action} this violation.\n"
+            "Use an admin account or the owner of the deployment."
+        )
+    return _friendly_backend_error(f"Failed to {action} violation", text)
+
+
+def _print_current_account_hint() -> None:
+    try:
+        user_client = AIACClient(base_path="users")
+        resp = user_client.get("/me/")
+        payload = resp.json() if resp.text else {}
+        if isinstance(payload, dict):
+            typer.echo(
+                f"Current account: id={payload.get('id', 'N/A')} "
+                f"email={payload.get('email', 'N/A')} role={payload.get('role', 'N/A')}"
+            )
+    except Exception:
+        # Best-effort hint only; main command should continue.
+        pass
+
+
+def _print_visible_violation_ids_hint(client: AIACClient, resolved: str, limit: int = 15) -> None:
+    """Best-effort helper to show violation IDs visible in current session."""
+    try:
+        response = client.get(f"/policy-violations/?resolved={resolved}")
+        payload = response.json() if response.text else []
+        items = payload if isinstance(payload, list) else [payload]
+        ids = [item.get("id") for item in items if isinstance(item, dict) and item.get("id") is not None]
+        if not ids:
+            typer.echo(f"No visible violations found for resolved={resolved} in this session.")
+            return
+        shown = ids[:limit]
+        suffix = " ..." if len(ids) > limit else ""
+        typer.echo(f"Visible violation IDs for resolved={resolved}: {shown}{suffix}")
+    except Exception:
+        # Best-effort hint only.
+        pass
 
 
 def _prompt_manual_rules() -> dict:
@@ -287,6 +355,7 @@ def view_violations():
             typer.echo("- Use `aiac governance debug-policy-engine --policy <id>` for detailed evaluation.")
             return
         table = Table(title="Policy Violations")
+        table.add_column("ID", style="white", no_wrap=True)
         table.add_column("Deployment", style="cyan", no_wrap=True)
         table.add_column("Policy", style="magenta")
         table.add_column("Type", style="green")
@@ -296,6 +365,7 @@ def view_violations():
         for violation in violations:
             metrics = violation.get("violation_metrics", violation)
             table.add_row(
+                str(metrics.get("id", "")),
                 str(metrics.get("deployment", "")),
                 str(metrics.get("policy", "")),
                 str(metrics.get("violation_type", "")),
@@ -306,31 +376,194 @@ def view_violations():
     except Exception as e:
         typer.echo(_friendly_backend_error("Failed to retrieve violations", str(e)))
 
+
+@governance_api_app.command("resolve-violation")
+def resolve_violation(
+    violation_id: int = typer.Option(..., prompt=True, help="Violation ID to mark as resolved."),
+):
+    """Resolve a policy violation."""
+    client = AIACClient(base_path="governance")
+    _print_current_account_hint()
+    try:
+        response = client.post(f"/policy-violations/{violation_id}/resolve/", json={})
+        payload = response.json() if response.text else {}
+        typer.echo(payload.get("message", f"Violation {violation_id} resolved successfully."))
+    except Exception as e:
+        error_text = str(e)
+        if "404" in error_text:
+            try:
+                # If detail endpoint exists, action endpoint is likely missing on backend.
+                client.get(f"/policy-violations/{violation_id}/")
+                typer.echo(
+                    "Resolve endpoint is not available on this backend version.\n"
+                    "Update/restart the API server to a version that supports violation actions."
+                )
+                return
+            except Exception:
+                pass
+        typer.echo(_friendly_violation_action_error("resolve", error_text, violation_id))
+        if "not found" in error_text.lower() or "no policyviolation matches" in error_text.lower():
+            _print_visible_violation_ids_hint(client, resolved="false")
+
+
+@governance_api_app.command("reopen-violation")
+def reopen_violation(
+    violation_id: int = typer.Option(..., prompt=True, help="Violation ID to reopen."),
+):
+    """Reopen a resolved policy violation."""
+    client = AIACClient(base_path="governance")
+    _print_current_account_hint()
+    try:
+        response = client.post(f"/policy-violations/{violation_id}/reopen/", json={})
+        payload = response.json() if response.text else {}
+        typer.echo(payload.get("message", f"Violation {violation_id} reopened successfully."))
+    except Exception as e:
+        error_text = str(e)
+        if "404" in error_text:
+            try:
+                # If detail endpoint exists, action endpoint is likely missing on backend.
+                client.get(f"/policy-violations/{violation_id}/")
+                typer.echo(
+                    "Reopen endpoint is not available on this backend version.\n"
+                    "Update/restart the API server to a version that supports violation actions."
+                )
+                return
+            except Exception:
+                pass
+        typer.echo(_friendly_violation_action_error("reopen", error_text, violation_id))
+        if "not found" in error_text.lower() or "no policyviolation matches" in error_text.lower():
+            _print_visible_violation_ids_hint(client, resolved="true")
+
+
+@governance_api_app.command("resolve-all-violations")
+def resolve_all_violations(
+    deployment_id: int = typer.Option(None, "--deployment-id", help="Optional deployment ID filter."),
+    policy_id: int = typer.Option(None, "--policy-id", help="Optional policy ID filter."),
+):
+    """Resolve all unresolved violations, optionally filtered by deployment or policy."""
+    client = AIACClient(base_path="governance")
+    payload = {}
+    if deployment_id is not None:
+        payload["deployment"] = deployment_id
+    if policy_id is not None:
+        payload["policy"] = policy_id
+
+    try:
+        response = client.post("/policy-violations/resolve-all/", json=payload)
+        body = response.json() if response.text else {}
+        typer.echo(body.get("message", "Bulk violation resolution completed."))
+        if body.get("resolved_count") is not None:
+            typer.echo(f"resolved_count: {body.get('resolved_count')}")
+    except Exception as e:
+        error_text = str(e)
+        lowered = error_text.lower()
+        # Fallback path for older backends where resolve-all action is not available yet.
+        if "405" in lowered or ("404" in lowered and "resolve-all" in lowered):
+            try:
+                query_parts = ["resolved=false"]
+                if deployment_id is not None:
+                    query_parts.append(f"deployment={deployment_id}")
+                if policy_id is not None:
+                    query_parts.append(f"policy={policy_id}")
+                query = "&".join(query_parts)
+                list_resp = client.get(f"/policy-violations/?{query}")
+                items = list_resp.json()
+                violations = items if isinstance(items, list) else [items]
+                if not violations:
+                    typer.echo("No unresolved violations matched the filter.")
+                    return
+
+                resolved_count = 0
+                for item in violations:
+                    vid = item.get("id")
+                    if vid is None:
+                        continue
+                    try:
+                        client.post(f"/policy-violations/{vid}/resolve/", json={})
+                        resolved_count += 1
+                    except Exception:
+                        # Continue resolving others; show summary at the end.
+                        pass
+
+                typer.echo(
+                    f"Bulk endpoint is unavailable on this backend. "
+                    f"Resolved {resolved_count} violation(s) using per-item fallback."
+                )
+                return
+            except Exception as fallback_error:
+                typer.echo(
+                    _friendly_backend_error(
+                        "Failed to resolve violations in bulk",
+                        str(fallback_error),
+                    )
+                )
+                return
+
+        typer.echo(_friendly_backend_error("Failed to resolve violations in bulk", error_text))
+
 @governance_api_app.command("metrics")
-def violation_metrics():
-    """View metrics related to policy violations."""
+def violation_metrics(
+    deployment_id: int = typer.Option(None, "--deployment-id", help="Optional deployment ID filter."),
+    severity: str = typer.Option("", "--severity", help="Optional severity filter: low|medium|high."),
+    resolved: str = typer.Option(
+        "all",
+        "--resolved",
+        help="Filter by resolution state: all|true|false.",
+    ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table or json."),
+):
+    """View aggregated policy violation metrics."""
 
     client = AIACClient(base_path="governance")
     try:
-        response = client.get("/policy-violations/")
-        violations = response.json()
-        if not violations:
-            typer.echo("No violations found.")
+        fmt = (output_format or "table").strip().lower()
+        if fmt not in {"table", "json"}:
+            typer.echo("Invalid format. Use 'table' or 'json'.")
             return
 
-        # Serializer returns global counters per item. Print once from first entry.
-        metrics = violations[0].get("violation_metrics", {})
-        keys = [
-            "Total Violations",
-            "Unresolved Violations",
-            "Resolved Violations",
-            "High Severity Violations",
-            "Medium Severity Violations",
-            "Low Severity Violations",
-        ]
-        typer.echo("Violation Metrics:")
-        for key in keys:
-            typer.echo(f"{key}: {metrics.get(key, 0)}")
+        resolved_opt = (resolved or "all").strip().lower()
+        if resolved_opt not in {"all", "true", "false"}:
+            typer.echo("Invalid --resolved value. Use: all, true, or false.")
+            return
+
+        severity_opt = (severity or "").strip().lower()
+        if severity_opt and severity_opt not in {"low", "medium", "high"}:
+            typer.echo("Invalid --severity value. Use: low, medium, or high.")
+            return
+
+        params = []
+        if deployment_id is not None:
+            params.append(f"deployment={deployment_id}")
+        if severity_opt:
+            params.append(f"severity={severity_opt}")
+        if resolved_opt != "all":
+            params.append(f"resolved={resolved_opt}")
+        query = f"?{'&'.join(params)}" if params else ""
+
+        response = client.get(f"/policy-violations/metrics/{query}")
+        metrics = response.json() if response.text else {}
+
+        if fmt == "json":
+            typer.echo(json.dumps(metrics, indent=2, default=str))
+            return
+
+        table = Table(title="Policy Violation Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="white")
+        table.add_row("Total Violations", str(metrics.get("total_violations", 0)))
+        table.add_row("Unresolved Violations", str(metrics.get("unresolved_violations", 0)))
+        table.add_row("Resolved Violations", str(metrics.get("resolved_violations", 0)))
+        table.add_row("High Severity Violations", str(metrics.get("high_severity_violations", 0)))
+        table.add_row("Medium Severity Violations", str(metrics.get("medium_severity_violations", 0)))
+        table.add_row("Low Severity Violations", str(metrics.get("low_severity_violations", 0)))
+        console.print(table)
+
+        if int(metrics.get("total_violations", 0) or 0) == 0:
+            typer.echo("No violations match the current filters.")
+            typer.echo("Tips:")
+            typer.echo("- Run `aiac governance run-policy-engine` to generate fresh violations.")
+            typer.echo("- Use `aiac governance view-violations` to inspect violation details.")
+            typer.echo("- Review applied policies with `aiac governance list-policies`.")
     except Exception as e:
         typer.echo(_friendly_backend_error("Failed to retrieve violation metrics", str(e)))
 

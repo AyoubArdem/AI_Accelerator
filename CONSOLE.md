@@ -152,45 +152,7 @@ Example:
 aiac auth token-show --email user@example.com --password secret
 ```
 
-### Friendly Errors and Recovery (`auth` + `server`)
 
-When the API server is down:
-```text
-Unable to login because the API server is not reachable at http://127.0.0.1:8000.
-Start the server with `aiac server run --host 127.0.0.1 --port 8000` and try again.
-```
-
-When credentials are invalid:
-```text
-Invalid email or password.
-```
-
-When token/session is expired:
-```text
-Session expired or token is invalid. Please run `aiac auth login` and try again.
-```
-
-When backend DB is not ready:
-```text
-... backend database is not ready.
-Start the API server with migrations:
-  aiac server run --migrate
-Then retry.
-```
-
-When backend returns internal HTML error page:
-```text
-... backend returned an internal server error.
-Check backend logs with:
-  aiac server status
-  type %USERPROFILE%\.aiac\server.log
-```
-
-When server startup fails due to missing env var:
-```text
-Server startup failed: missing required environment variable `EMAIL_HOST`.
-Set it in your shell or `.env`, then rerun `aiac server run`.
-```
 
 ## deployment
 
@@ -471,6 +433,214 @@ Example:
 aiac deployment traffic-shadow --deployment-id 20 --candidate 3 --samples 300 --format json
 ```
 
+Result interpretation:
+- `Deployment`: live deployment being evaluated.
+- `Current Model`: model version currently serving traffic.
+- `Candidate`: model version tested in shadow mode.
+- `Samples`: number of evaluation samples used.
+- `Recommendation`:
+  - `promote_candidate`: candidate is safe/better to promote.
+  - `keep_current`: keep current model.
+  - `review_required`: results are mixed; validate manually.
+
+Shadow metrics:
+- `Match Rate`: fraction of samples where current and candidate predictions match (`matches / samples`).
+- `Matches`: count of matching predictions.
+- `Current Latency (ms)`: average inference latency of current model.
+- `Candidate Latency (ms)`: average inference latency of candidate model.
+- `Latency Ratio`: `candidate_latency / current_latency`.
+  - `< 1.0`: candidate is faster.
+  - `= 1.0`: similar speed.
+  - `> 1.0`: candidate is slower.
+- `Avg Abs Diff`: average absolute prediction difference (mainly for numeric/regression outputs). `0.0` means no numeric deviation on tested samples.
+
+### `deployment k8s-deploy`
+Deploy AI runtime image to Kubernetes and expose a Service.
+
+Options:
+- `--deployment-id` (prompted)
+- `--image, -i` (required container image)
+- `--namespace, -n` (default `default`)
+- `--replicas, -r` (default `1`)
+- `--container-port` (default `8000`)
+- `--service-port` (default `80`)
+- `--service-type` (`ClusterIP|NodePort|LoadBalancer`, default `ClusterIP`)
+- `--rollout-strategy` (`RollingUpdate|Recreate`, default `RollingUpdate`)
+- `--max-unavailable` (default `25%`, RollingUpdate only)
+- `--max-surge` (default `25%`, RollingUpdate only)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Notes:
+- If kubeconfig is missing, AIAC tries automatic Minikube context refresh (`minikube update-context`) before failing.
+- On PowerShell, explicit kubeconfig path format:
+  - `--kubeconfig $env:USERPROFILE\\.kube\\config`
+
+Example:
+```bash
+aiac deployment k8s-deploy --deployment-id 20 --image ghcr.io/acme/model-runtime:1.0 --namespace ml --replicas 2 --service-type LoadBalancer
+aiac deployment k8s-deploy --deployment-id 20 --image ghcr.io/acme/model-runtime:1.0 --rollout-strategy RollingUpdate --max-unavailable 1 --max-surge 1
+```
+
+### `deployment k8s-preflight`
+Run Kubernetes readiness checks before running other k8s commands.
+
+Checks include:
+- Kubernetes SDK installed
+- kubeconfig/context load
+- API reachability
+- namespace existence
+- optional deployment resource existence
+
+Options:
+- `--namespace, -n` (default `default`)
+- `--deployment-id` (optional)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Examples:
+```bash
+aiac deployment k8s-preflight
+aiac deployment k8s-preflight --namespace ml --deployment-id 20
+```
+
+### `deployment k8s-bootstrap`
+Install Minikube (Windows/winget) and start a local Kubernetes cluster.
+
+Options:
+- `--install/--no-install` (default `--install`)
+- `--driver` (default `docker`)
+- `--profile` (optional Minikube profile)
+
+Examples:
+```bash
+aiac deployment k8s-bootstrap
+aiac deployment k8s-bootstrap --no-install --driver docker
+aiac deployment k8s-bootstrap --profile aiac-local
+```
+
+### `deployment k8s-doctor`
+Diagnose Kubernetes environment and print exact recovery commands.
+
+Checks include:
+- Docker CLI availability
+- `kubectl` and `minikube` availability
+- Python Kubernetes SDK installation
+- Minikube cluster status
+- kubeconfig/API reachability
+
+Options:
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Examples:
+```bash
+aiac deployment k8s-doctor
+aiac deployment k8s-doctor --kubeconfig $env:USERPROFILE\.kube\config
+```
+
+Local setup (Minikube + Docker):
+- Prerequisite: Docker Desktop/Engine must be running.
+- Install Minikube:
+```bash
+winget install Kubernetes.minikube
+```
+- Start a local cluster using Docker driver:
+```bash
+minikube start --driver=docker
+```
+- Verify cluster:
+```bash
+kubectl cluster-info
+kubectl get nodes
+```
+- Then run AIAC preflight:
+```bash
+aiac deployment k8s-preflight
+```
+
+### `deployment k8s-status`
+Show Kubernetes deployment/service status for an AIAC deployment ID.
+
+Options:
+- `--deployment-id` (prompted)
+- `--namespace, -n` (default `default`)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Example:
+```bash
+aiac deployment k8s-status --deployment-id 20 --namespace ml
+```
+
+### `deployment k8s-scale`
+Scale Kubernetes replicas for an AIAC deployment ID.
+
+Options:
+- `--deployment-id` (prompted)
+- `--replicas, -r` (prompted)
+- `--namespace, -n` (default `default`)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Example:
+```bash
+aiac deployment k8s-scale --deployment-id 20 --replicas 4 --namespace ml
+```
+
+### `deployment k8s-hpa`
+Create or update Horizontal Pod Autoscaler for an AIAC deployment.
+
+Options:
+- `--deployment-id` (prompted)
+- `--min` (default `1`)
+- `--max` (prompted)
+- `--cpu-percent` (default `70`)
+- `--namespace, -n` (default `default`)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Example:
+```bash
+aiac deployment k8s-hpa --deployment-id 20 --min 2 --max 8 --cpu-percent 65 --namespace ml
+```
+
+### `deployment k8s-delete`
+Delete Kubernetes Deployment and Service created by `k8s-deploy`.
+
+Options:
+- `--deployment-id` (prompted)
+- `--namespace, -n` (default `default`)
+- `--yes` (skip confirmation)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Behavior:
+- Deletes HPA (`<name>-hpa`) if present.
+- Deletes Service and Deployment.
+
+Example:
+```bash
+aiac deployment k8s-delete --deployment-id 20 --namespace ml --yes
+```
+
+### `deployment k8s-rollback`
+Rollback Kubernetes deployment image to a previous ReplicaSet revision.
+
+Options:
+- `--deployment-id` (prompted)
+- `--namespace, -n` (default `default`)
+- `--to-revision` (default `0`: auto-select previous revision)
+- `--yes` (skip confirmation)
+- `--kubeconfig` (optional)
+- `--context` (optional)
+
+Examples:
+```bash
+aiac deployment k8s-rollback --deployment-id 20 --namespace ml
+aiac deployment k8s-rollback --deployment-id 20 --namespace ml --to-revision 3 --yes
+```
+
 ### `deployment explain-decision`
 Run explainable decision inference with configurable refusal checks.
 
@@ -649,6 +819,7 @@ Options:
 - `--data-samples` (JSON array string)
 - `--samples-file` (JSON or CSV file)
 - `--csv-file` (CSV file)
+- `--drop-last-column` (CSV only; removes last column per row, useful for label/target column)
 - `--format, -f` (`auto|json|csv`, for `--samples-file`, default `auto`)
 - `--chunk-size` (`0` single request)
 - `--dry-run` (validate only)
@@ -660,6 +831,7 @@ Examples:
 aiac monitoring samples --model-version-id 4 --data-samples "[0.1, 0.2, 0.3]"
 aiac monitoring samples --model-version-id 4 --samples-file samples.json
 aiac monitoring samples --model-version-id 4 --csv-file samples.csv --chunk-size 100
+aiac monitoring samples --model-version-id 4 --csv-file samples.csv --drop-last-column --preview 20
 ```
 
 ## governance
@@ -721,12 +893,56 @@ Example:
 aiac governance view-violations
 ```
 
+### `governance resolve-violation`
+Mark a violation as resolved.
+
+Options:
+- `--violation-id` (prompted)
+
+Example:
+```bash
+aiac governance resolve-violation --violation-id 12
+```
+
+### `governance reopen-violation`
+Reopen a previously resolved violation.
+
+Options:
+- `--violation-id` (prompted)
+
+Example:
+```bash
+aiac governance reopen-violation --violation-id 12
+```
+
+### `governance resolve-all-violations`
+Resolve all unresolved violations. You can filter by deployment and/or policy.
+
+Options:
+- `--deployment-id` (optional)
+- `--policy-id` (optional)
+
+Examples:
+```bash
+aiac governance resolve-all-violations
+aiac governance resolve-all-violations --deployment-id 14
+aiac governance resolve-all-violations --policy-id 3
+aiac governance resolve-all-violations --deployment-id 14 --policy-id 3
+```
+
 ### `governance metrics`
 Show aggregated violation metrics.
+
+Options:
+- `--deployment-id` (optional filter)
+- `--severity` (`low|medium|high`, optional)
+- `--resolved` (`all|true|false`, default `all`)
+- `--format, -f` (`table|json`, default `table`)
 
 Example:
 ```bash
 aiac governance metrics
+aiac governance metrics --deployment-id 14 --severity high --resolved false
 ```
 
 ### `governance run-policy-engine`

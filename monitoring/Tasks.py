@@ -90,6 +90,21 @@ def CollectAndStoreMetrics(deployment_id, schedule_next=False, interval_seconds=
     except Exception:
         count_error = 1
 
+    # Prefer runtime counters when available. /metrics exposes cumulative totals.
+    # Keep backward compatibility by falling back to probe-based counters above.
+    runtime_request_total = None
+    runtime_error_total = None
+    metrics_url = f"http://127.0.0.1:{deploy.port}/metrics"
+    try:
+        metrics_resp = requests.get(metrics_url, timeout=3)
+        if metrics_resp.status_code < 400:
+            metrics_payload = metrics_resp.json() if metrics_resp.text else {}
+            runtime_request_total = int(metrics_payload.get("request_count", 0))
+            runtime_error_total = int(metrics_payload.get("error_count", 0))
+    except Exception:
+        runtime_request_total = None
+        runtime_error_total = None
+
     cpu_usage = 0.0
     ram_usage = 0.0
     try:
@@ -122,15 +137,6 @@ def CollectAndStoreMetrics(deployment_id, schedule_next=False, interval_seconds=
         "error_count": count_error,
     }
 
-    DeploymentMonitoringRecord.objects.create(
-        deployment=deploy,
-        cpu_usage=payload["cpu_usage"],
-        ram_usage=payload["ram_usage"],
-        latency_ms=payload["latency_ms"],
-        request_count=payload["request_count"],
-        error_count=payload["error_count"],
-    )
-
     stats, _ = DeploymentStats.objects.get_or_create(
         deployment=deploy,
         defaults={
@@ -141,11 +147,39 @@ def CollectAndStoreMetrics(deployment_id, schedule_next=False, interval_seconds=
             "error_count": payload["error_count"],
         },
     )
+    previous_total_requests = int(stats.request_count or 0)
+    previous_total_errors = int(stats.error_count or 0)
+
+    # Store per-record deltas, while stats keep cumulative totals.
+    if runtime_request_total is not None and runtime_error_total is not None:
+        count_request = max(runtime_request_total - previous_total_requests, 0)
+        count_error = max(runtime_error_total - previous_total_errors, 0)
+        total_request_count = max(runtime_request_total, previous_total_requests)
+        total_error_count = max(runtime_error_total, previous_total_errors)
+    else:
+        total_request_count = previous_total_requests + int(payload["request_count"])
+        total_error_count = previous_total_errors + int(payload["error_count"])
+
+    # Record deltas for time-series analysis.
+    payload["request_count"] = int(count_request)
+    payload["error_count"] = int(count_error)
+
+    # Persist the monitoring sample with delta values.
+    DeploymentMonitoringRecord.objects.create(
+        deployment=deploy,
+        cpu_usage=payload["cpu_usage"],
+        ram_usage=payload["ram_usage"],
+        latency_ms=payload["latency_ms"],
+        request_count=payload["request_count"],
+        error_count=payload["error_count"],
+    )
+
+    # Persist cumulative counters in stats.
     stats.cpu_usage = payload["cpu_usage"]
     stats.ram_usage = payload["ram_usage"]
     stats.latency_ms = payload["latency_ms"]
-    stats.request_count = payload["request_count"]
-    stats.error_count = payload["error_count"]
+    stats.request_count = int(total_request_count)
+    stats.error_count = int(total_error_count)
     stats.save()
 
     # Generate alerts directly from collected stats (same thresholds as API view).

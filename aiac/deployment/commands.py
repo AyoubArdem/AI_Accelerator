@@ -7,11 +7,76 @@ import socket
 import json
 import requests
 import typer
+import re
+import os
+from pathlib import Path
 from aiac.console import console, print_info, print_message, print_warning
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 api_app_deployment = typer.Typer(help="Deployment commands")
+
+
+def _load_k8s_clients(kubeconfig: str = "", context: str = ""):
+    try:
+        from kubernetes import client as k8s_client
+        from kubernetes import config as k8s_config
+        from kubernetes.client.exceptions import ApiException
+    except Exception:
+        return None, None, None, (
+            "Kubernetes SDK is not installed.\n"
+            "Install it with `pip install kubernetes` and retry."
+        )
+
+    # Normalize kubeconfig path to support values like %USERPROFILE%\.kube\config.
+    kubeconfig_path = ""
+    if kubeconfig:
+        kubeconfig_path = os.path.expanduser(os.path.expandvars(kubeconfig.strip()))
+
+    def _try_load():
+        if kubeconfig_path:
+            if not Path(kubeconfig_path).exists():
+                raise FileNotFoundError(
+                    f"Kubeconfig file was not found at '{kubeconfig_path}'."
+                )
+            k8s_config.load_kube_config(
+                config_file=kubeconfig_path,
+                context=context or None,
+            )
+        else:
+            k8s_config.load_kube_config(context=context or None)
+
+    first_error = None
+    try:
+        _try_load()
+    except Exception as e:
+        first_error = e
+        # Best-effort local auto-fix for Minikube users.
+        try:
+            subprocess.run(
+                ["minikube", "update-context"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            _try_load()
+        except Exception:
+            # Fallback to in-cluster config if running inside Kubernetes.
+            try:
+                k8s_config.load_incluster_config()
+            except Exception as in_cluster_error:
+                details = str(first_error or in_cluster_error)
+                return None, None, None, (
+                    "Unable to load Kubernetes configuration.\n"
+                    "AIAC tried: kubeconfig, minikube context refresh, then in-cluster config.\n"
+                    "Fix options:\n"
+                    "1) Start local cluster: `minikube start --driver=docker`\n"
+                    "2) Refresh context: `minikube update-context`\n"
+                    "3) Pass explicit config: `--kubeconfig $env:USERPROFILE\\.kube\\config` (PowerShell)\n"
+                    f"Details: {details}"
+                )
+
+    return k8s_client, k8s_client.AppsV1Api(), k8s_client.CoreV1Api(), ApiException
 
 def _is_html_error_blob(text: str) -> bool:
     t = (text or "").lower()
@@ -20,6 +85,25 @@ def _is_html_error_blob(text: str) -> bool:
 
 def _friendly_backend_error(prefix: str, error_text: str) -> str:
     text = str(error_text or "")
+    lowered = text.lower()
+    if "403" in lowered and "admin access required" in lowered:
+        match = re.search(r"Contact admin:\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", text)
+        contact = match.group(1) if match else None
+        contact_line = (
+            f"Contact admin: {contact}"
+            if contact
+            else "Login with an admin account, or ask an admin to approve/reject/retire this model version."
+        )
+        return (
+            f"{prefix}: admin access is required.\n"
+            f"{contact_line}"
+        )
+    if "submitted file is empty" in text.lower():
+        return (
+            f"{prefix}: uploaded model file is empty.\n"
+            "Use a valid non-empty model file, then retry.\n"
+            "Tip: if a token refresh happened, rerun the command once."
+        )
     if "API server is not reachable" in text:
         return text
     if "OperationalError" in text:
@@ -183,6 +267,13 @@ def _friendly_shadow_error(error_text: str, deployment_id: int) -> str:
         return (
             "Traffic shadow could not load model dependencies in backend environment. "
             f"Details: {error_text}"
+        )
+    if "features, but" in error_text and "expecting" in error_text:
+        return (
+            "Feature mismatch between uploaded samples and model input schema.\n"
+            "Your samples have a different number of columns than the model expects "
+            "(often because CSV includes the target/label column).\n"
+            "Upload feature-only samples with the exact same feature count used in training, then rerun traffic-shadow."
         )
     return f"Failed to run traffic shadow analysis: {error_text}"
 
@@ -936,9 +1027,10 @@ def list_deployments():
         table.add_column("Status")
         table.add_column("Endpoint URL")
         table.add_column("Container Id")
+        table.add_column("K8s Image Hint")
         table.add_column("Logs")
         table.add_column("Deployed At")
-        table.add_row("----", "----", "-------", "-------------", "----", "------", "------------", "------------", "----", "-----------")
+        table.add_row("----", "----", "-------", "-------------", "----", "------", "------------", "------------", "--------------", "----", "-----------")
         for deployment in response.json():
             project_name = "N/A"
             model_version_id = deployment.get("model_version")
@@ -965,10 +1057,11 @@ def list_deployments():
                 str(deployment["status"]),
                 str(deployment.get("endpoint_url")),
                 str(deployment.get("docker_container_id")),
+                f"model_deploy_{deployment['id']}",
                 str(deployment.get("logs")),
                 str(deployment.get("deployed_at")),
             )
-        table.add_row("----", "----", "-------", "-------------", "----", "------", "------------", "------------", "----", "-----------")
+        table.add_row("----", "----", "-------", "-------------", "----", "------", "------------", "------------", "--------------", "----", "-----------")
         console.print(table)
     except Exception as e:
         typer.echo(f"Failed to retrieve deployments: {str(e)}")
@@ -1002,6 +1095,7 @@ def get_deployment_details(deployment_id: int = typer.Option(..., prompt=True, h
         table = Table(title="Deployment Details")
         table.add_column("Field", style="cyan", no_wrap=True)
         table.add_row("project", project_name)
+        table.add_row("k8s_image_hint", f"model_deploy_{deployment_id}")
         for key, value in payload.items():
             table.add_row(key, str(value))
         runtime_urls = _runtime_urls_from_payload(payload)
@@ -1220,6 +1314,43 @@ def deployment_traffic_shadow(
         console.print(mt)
 
         typer.echo(f"Reason: {payload.get('reason')}")
+        typer.echo("Interpretation:")
+        typer.echo(
+            f"- Evaluated deployment {payload.get('deployment_id')} "
+            f"(current={payload.get('current_model_version_id')} vs candidate={payload.get('candidate_model_version_id')}) "
+            f"on {payload.get('sample_count')} samples."
+        )
+        rec = str(payload.get("recommendation", ""))
+        if rec == "promote_candidate":
+            typer.echo("- Recommendation means candidate performance is acceptable for promotion.")
+        elif rec == "keep_current":
+            typer.echo("- Recommendation means current model remains the safer/better choice.")
+        elif rec == "review_required":
+            typer.echo("- Recommendation means manual review is required before any promotion decision.")
+
+        match_rate = m.get("prediction_match_rate")
+        matches = m.get("prediction_matches")
+        if match_rate is not None and matches is not None:
+            typer.echo(
+                f"- Match rate={match_rate} ({matches} matching predictions): "
+                "higher is closer behavior to current model."
+            )
+
+        latency_ratio = m.get("latency_ratio_candidate_vs_current")
+        if isinstance(latency_ratio, (int, float)):
+            if latency_ratio < 1:
+                typer.echo(f"- Latency ratio={latency_ratio:.4f}: candidate is faster than current.")
+            elif latency_ratio > 1:
+                typer.echo(f"- Latency ratio={latency_ratio:.4f}: candidate is slower than current.")
+            else:
+                typer.echo("- Latency ratio=1.0000: candidate and current have similar latency.")
+
+        avg_abs_diff = m.get("avg_abs_prediction_diff")
+        if avg_abs_diff is not None:
+            typer.echo(
+                f"- Avg abs diff={avg_abs_diff}: lower values indicate closer numeric outputs "
+                "(especially for regression-like predictions)."
+            )
     except Exception as e:
         msg = str(e)
         if "Candidate model version not found" in msg:
@@ -1652,7 +1783,7 @@ def approve_model_version(
         payload = resp.json() if resp.text else {}
         typer.echo(payload.get("message", f"Model version {model_version_id} approved."))
     except Exception as e:
-        typer.echo(f"Failed to approve model version: {e}")
+        typer.echo(_friendly_backend_error("Failed to approve model version", str(e)))
 
 
 @api_app_deployment.command("reject-model-version")
@@ -1671,7 +1802,7 @@ def reject_model_version(
         payload = resp.json() if resp.text else {}
         typer.echo(payload.get("message", f"Model version {model_version_id} rejected."))
     except Exception as e:
-        typer.echo(f"Failed to reject model version: {e}")
+        typer.echo(_friendly_backend_error("Failed to reject model version", str(e)))
 
 
 @api_app_deployment.command("retire-model-version")
@@ -1690,7 +1821,7 @@ def retire_model_version(
         payload = resp.json() if resp.text else {}
         typer.echo(payload.get("message", f"Model version {model_version_id} retired."))
     except Exception as e:
-        typer.echo(f"Failed to retire model version: {e}")
+        typer.echo(_friendly_backend_error("Failed to retire model version", str(e)))
 
 
 @api_app_deployment.command("list-model-approvals")
@@ -1733,3 +1864,887 @@ def list_model_approvals(
         console.print(table)
     except Exception as e:
         typer.echo(f"Failed to list approvals: {e}")
+
+
+@api_app_deployment.command("k8s-deploy")
+def k8s_deploy(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    image: str = typer.Option(..., "--image", "-i", prompt=True, help="Container image to run"),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    replicas: int = typer.Option(1, "--replicas", "-r", help="Number of replicas"),
+    container_port: int = typer.Option(8000, "--container-port", help="Container port"),
+    service_port: int = typer.Option(80, "--service-port", help="Service port"),
+    service_type: str = typer.Option("ClusterIP", "--service-type", help="ClusterIP|NodePort|LoadBalancer"),
+    rollout_strategy: str = typer.Option(
+        "RollingUpdate",
+        "--rollout-strategy",
+        help="Deployment strategy: RollingUpdate or Recreate",
+    ),
+    max_unavailable: str = typer.Option(
+        "25%",
+        "--max-unavailable",
+        help="RollingUpdate max unavailable (int or percent), used only for RollingUpdate.",
+    ),
+    max_surge: str = typer.Option(
+        "25%",
+        "--max-surge",
+        help="RollingUpdate max surge (int or percent), used only for RollingUpdate.",
+    ),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Deploy an AIAC runtime image to Kubernetes and expose a Service."""
+    service_type_normalized = (service_type or "ClusterIP").strip()
+    if service_type_normalized not in {"ClusterIP", "NodePort", "LoadBalancer"}:
+        typer.echo("Invalid service type. Use ClusterIP, NodePort, or LoadBalancer.")
+        return
+    strategy_normalized = (rollout_strategy or "RollingUpdate").strip()
+    if strategy_normalized not in {"RollingUpdate", "Recreate"}:
+        typer.echo("Invalid rollout strategy. Use RollingUpdate or Recreate.")
+        return
+    if replicas < 1:
+        typer.echo("replicas must be >= 1.")
+        return
+
+    k8s_client, apps_api, core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+
+    resource_name = f"aiac-deploy-{deployment_id}"
+    labels = {
+        "app": "aiac-runtime",
+        "aiac-deployment-id": str(deployment_id),
+    }
+
+    container = k8s_client.V1Container(
+        name="runtime",
+        image=image,
+        ports=[k8s_client.V1ContainerPort(container_port=container_port)],
+    )
+    pod_spec = k8s_client.V1PodSpec(containers=[container])
+    pod_template = k8s_client.V1PodTemplateSpec(
+        metadata=k8s_client.V1ObjectMeta(labels=labels),
+        spec=pod_spec,
+    )
+    def _int_or_percent(value: str):
+        v = str(value).strip()
+        if v.endswith("%"):
+            # Keep percentages as strings in K8s API.
+            return v
+        try:
+            return int(v)
+        except ValueError:
+            raise typer.BadParameter("Expected integer or percentage (e.g. 1 or 25%).")
+
+    rolling_update_cfg = None
+    if strategy_normalized == "RollingUpdate":
+        rolling_update_cfg = k8s_client.V1RollingUpdateDeployment(
+            max_unavailable=_int_or_percent(max_unavailable),
+            max_surge=_int_or_percent(max_surge),
+        )
+
+    strategy_cfg = k8s_client.V1DeploymentStrategy(
+        type=strategy_normalized,
+        rolling_update=rolling_update_cfg,
+    )
+
+    dep_spec = k8s_client.V1DeploymentSpec(
+        replicas=replicas,
+        strategy=strategy_cfg,
+        selector=k8s_client.V1LabelSelector(match_labels=labels),
+        template=pod_template,
+    )
+    dep_body = k8s_client.V1Deployment(
+        metadata=k8s_client.V1ObjectMeta(name=resource_name, labels=labels),
+        spec=dep_spec,
+    )
+
+    svc_spec = k8s_client.V1ServiceSpec(
+        selector=labels,
+        ports=[k8s_client.V1ServicePort(port=service_port, target_port=container_port)],
+        type=service_type_normalized,
+    )
+    svc_body = k8s_client.V1Service(
+        metadata=k8s_client.V1ObjectMeta(name=resource_name, labels=labels),
+        spec=svc_spec,
+    )
+
+    try:
+        try:
+            apps_api.read_namespaced_deployment(name=resource_name, namespace=namespace)
+            apps_api.patch_namespaced_deployment(name=resource_name, namespace=namespace, body=dep_body)
+            dep_action = "updated"
+        except ApiException as e:
+            if e.status != 404:
+                raise
+            apps_api.create_namespaced_deployment(namespace=namespace, body=dep_body)
+            dep_action = "created"
+
+        try:
+            core_api.read_namespaced_service(name=resource_name, namespace=namespace)
+            core_api.patch_namespaced_service(name=resource_name, namespace=namespace, body=svc_body)
+            svc_action = "updated"
+        except ApiException as e:
+            if e.status != 404:
+                raise
+            core_api.create_namespaced_service(namespace=namespace, body=svc_body)
+            svc_action = "created"
+
+        table = Table(title="Kubernetes Deployment")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="white")
+        table.add_row("Name", resource_name)
+        table.add_row("Namespace", namespace)
+        table.add_row("Image", image)
+        table.add_row("Replicas", str(replicas))
+        table.add_row("Container Port", str(container_port))
+        table.add_row("Service Port", str(service_port))
+        table.add_row("Service Type", service_type_normalized)
+        table.add_row("Rollout Strategy", strategy_normalized)
+        if strategy_normalized == "RollingUpdate":
+            table.add_row("Max Unavailable", str(max_unavailable))
+            table.add_row("Max Surge", str(max_surge))
+        table.add_row("Deployment", dep_action)
+        table.add_row("Service", svc_action)
+        console.print(table)
+    except Exception as e:
+        typer.echo(f"Failed to deploy to Kubernetes: {e}")
+
+
+@api_app_deployment.command("k8s-preflight")
+def k8s_preflight(
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace to check"),
+    deployment_id: int = typer.Option(
+        None,
+        "--deployment-id",
+        help="Optional AIAC deployment ID to check if Kubernetes resources already exist.",
+    ),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Run Kubernetes readiness checks before using k8s commands."""
+    checks = []
+
+    # SDK presence check.
+    try:
+        from kubernetes import client as _k8s_client  # noqa: F401
+        checks.append(("Kubernetes SDK", "PASS", "Python kubernetes package is installed.", ""))
+    except Exception:
+        checks.append(
+            (
+                "Kubernetes SDK",
+                "FAIL",
+                "Python kubernetes package is missing.",
+                "Install with: pip install kubernetes",
+            )
+        )
+        table = Table(title="Kubernetes Preflight")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="yellow")
+        table.add_column("Details", style="white")
+        table.add_column("Suggested Fix", style="green")
+        for row in checks:
+            table.add_row(*row)
+        console.print(table)
+        typer.echo("Preflight result: not ready.")
+        return
+
+    k8s_client, apps_api, core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        checks.append(("Kube config", "FAIL", str(ApiException_or_error), "Set KUBECONFIG or pass --kubeconfig."))
+        table = Table(title="Kubernetes Preflight")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="yellow")
+        table.add_column("Details", style="white")
+        table.add_column("Suggested Fix", style="green")
+        for row in checks:
+            table.add_row(*row)
+        console.print(table)
+        typer.echo("Preflight result: not ready.")
+        return
+
+    ApiException = ApiException_or_error
+
+    # API reachability check.
+    try:
+        version_api = k8s_client.VersionApi()
+        v = version_api.get_code()
+        checks.append(("K8s API", "PASS", f"Reachable (v{v.major}.{v.minor}).", ""))
+    except Exception as e:
+        checks.append(("K8s API", "FAIL", f"Cannot reach Kubernetes API: {e}", "Start cluster or fix kube context."))
+
+    # Namespace check.
+    try:
+        core_api.read_namespace(name=namespace)
+        checks.append(("Namespace", "PASS", f"Namespace '{namespace}' exists.", ""))
+    except ApiException as e:
+        if e.status == 404:
+            checks.append(
+                (
+                    "Namespace",
+                    "WARN",
+                    f"Namespace '{namespace}' not found.",
+                    f"Create it with: kubectl create namespace {namespace}",
+                )
+            )
+        else:
+            checks.append(("Namespace", "FAIL", f"Namespace check failed: {e}", "Verify cluster permissions."))
+    except Exception as e:
+        checks.append(("Namespace", "FAIL", f"Namespace check failed: {e}", "Verify cluster permissions."))
+
+    # Optional existing resources check.
+    if deployment_id is not None:
+        resource_name = f"aiac-deploy-{deployment_id}"
+        try:
+            apps_api.read_namespaced_deployment(name=resource_name, namespace=namespace)
+            checks.append(("Deployment resource", "PASS", f"'{resource_name}' exists.", ""))
+        except ApiException as e:
+            if e.status == 404:
+                checks.append(
+                    (
+                        "Deployment resource",
+                        "WARN",
+                        f"'{resource_name}' does not exist yet.",
+                        "Run `aiac deployment k8s-deploy` first.",
+                    )
+                )
+            else:
+                checks.append(("Deployment resource", "FAIL", f"Check failed: {e}", "Verify RBAC and namespace."))
+        except Exception as e:
+            checks.append(("Deployment resource", "FAIL", f"Check failed: {e}", "Verify RBAC and namespace."))
+
+    table = Table(title="Kubernetes Preflight")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="yellow")
+    table.add_column("Details", style="white")
+    table.add_column("Suggested Fix", style="green")
+    for row in checks:
+        table.add_row(*row)
+    console.print(table)
+
+    fail_count = len([1 for c in checks if c[1] == "FAIL"])
+    warn_count = len([1 for c in checks if c[1] == "WARN"])
+    if fail_count > 0:
+        typer.echo("Preflight result: not ready.")
+    elif warn_count > 0:
+        typer.echo("Preflight result: partially ready (warnings present).")
+    else:
+        typer.echo("Preflight result: ready for Kubernetes commands.")
+
+
+@api_app_deployment.command("k8s-bootstrap")
+def k8s_bootstrap(
+    install_minikube: bool = typer.Option(
+        True,
+        "--install/--no-install",
+        help="Install Minikube using winget before start (Windows).",
+    ),
+    driver: str = typer.Option("docker", "--driver", help="Minikube driver (default: docker)."),
+    profile: str = typer.Option("", "--profile", help="Optional Minikube profile name."),
+):
+    """Install Minikube (optional) and start a local Kubernetes cluster."""
+    if install_minikube and platform.system().lower() != "windows":
+        typer.echo("Auto-install via winget is only supported on Windows. Skipping install step.")
+        install_minikube = False
+
+    if install_minikube:
+        try:
+            typer.echo("Installing Minikube with winget...")
+            install_proc = subprocess.run(
+                ["winget", "install", "Kubernetes.minikube", "--accept-package-agreements", "--accept-source-agreements"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if install_proc.returncode != 0:
+                details = (install_proc.stderr or install_proc.stdout or "").strip()
+                typer.echo(
+                    "Failed to install Minikube automatically.\n"
+                    "Install manually:\n"
+                    "  winget install Kubernetes.minikube\n"
+                    f"Details: {details[:300]}"
+                )
+                return
+            typer.echo("Minikube installation completed.")
+        except FileNotFoundError:
+            typer.echo(
+                "winget is not available on this system.\n"
+                "Install Minikube manually, then retry:\n"
+                "  winget install Kubernetes.minikube"
+            )
+            return
+        except Exception as e:
+            typer.echo(f"Failed to install Minikube: {e}")
+            return
+
+    start_cmd = ["minikube", "start", f"--driver={driver}"]
+    if profile:
+        start_cmd.extend(["-p", profile])
+
+    try:
+        typer.echo(f"Starting Minikube cluster with driver '{driver}'...")
+        start_proc = subprocess.run(
+            start_cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if start_proc.returncode != 0:
+            details = (start_proc.stderr or start_proc.stdout or "").strip()
+            typer.echo(
+                "Failed to start Minikube cluster.\n"
+                "Make sure Docker Desktop/Engine is running, then retry:\n"
+                "  minikube start --driver=docker\n"
+                f"Details: {details[:400]}"
+            )
+            return
+
+        typer.echo("Minikube cluster started successfully.")
+    except FileNotFoundError:
+        typer.echo(
+            "minikube command is not available.\n"
+            "Install Minikube, then run:\n"
+            "  minikube start --driver=docker"
+        )
+        return
+    except Exception as e:
+        typer.echo(f"Failed to start Minikube cluster: {e}")
+        return
+
+    # Verification checks
+    try:
+        cluster_info = subprocess.run(
+            ["kubectl", "cluster-info"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        nodes = subprocess.run(
+            ["kubectl", "get", "nodes"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if cluster_info.returncode == 0 and nodes.returncode == 0:
+            typer.echo("Kubernetes cluster is reachable.")
+            typer.echo("Next step: run `aiac deployment k8s-preflight`.")
+        else:
+            typer.echo(
+                "Minikube started, but kubectl verification failed.\n"
+                "Try manually:\n"
+                "  kubectl cluster-info\n"
+                "  kubectl get nodes"
+            )
+    except Exception:
+        typer.echo(
+            "Minikube started. Could not run kubectl verification automatically.\n"
+            "Please run:\n"
+            "  kubectl cluster-info\n"
+            "  kubectl get nodes"
+        )
+
+
+@api_app_deployment.command("k8s-doctor")
+def k8s_doctor(
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Diagnose Kubernetes setup and print recovery commands."""
+    checks = []
+
+    def _check_cmd(name: str, args: list[str], fix: str):
+        try:
+            proc = subprocess.run(args, capture_output=True, text=True, check=False)
+            if proc.returncode == 0:
+                details = (proc.stdout or proc.stderr or "").strip().splitlines()
+                checks.append((name, "PASS", (details[0] if details else "available"), ""))
+                return True
+            details = (proc.stderr or proc.stdout or "").strip()
+            checks.append((name, "FAIL", details[:180] or "command failed", fix))
+            return False
+        except FileNotFoundError:
+            checks.append((name, "FAIL", "command not found", fix))
+            return False
+        except Exception as e:
+            checks.append((name, "FAIL", str(e)[:180], fix))
+            return False
+
+    docker_ok = _check_cmd(
+        "Docker CLI",
+        ["docker", "--version"],
+        "Install/start Docker Desktop, then retry.",
+    )
+    _check_cmd(
+        "kubectl",
+        ["kubectl", "version", "--client"],
+        "Install kubectl: `winget install Kubernetes.kubectl`.",
+    )
+    minikube_ok = _check_cmd(
+        "Minikube",
+        ["minikube", "version"],
+        (
+            "Install Minikube with `winget install Kubernetes.minikube`.\n"
+            "If winget source fails, use manual installer from minikube docs."
+        ),
+    )
+
+    try:
+        import kubernetes  # noqa: F401
+        checks.append(("Python kubernetes SDK", "PASS", "installed", ""))
+    except Exception:
+        checks.append(
+            (
+                "Python kubernetes SDK",
+                "FAIL",
+                "package not installed",
+                "Install with: `pip install kubernetes` or `pip install \"ai-accelerator[k8s]\"`.",
+            )
+        )
+
+    if minikube_ok:
+        try:
+            ms = subprocess.run(
+                ["minikube", "status", "--output=json"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if ms.returncode == 0:
+                checks.append(("Minikube cluster", "PASS", "running", ""))
+            else:
+                details = (ms.stderr or ms.stdout or "").strip()
+                checks.append(
+                    (
+                        "Minikube cluster",
+                        "WARN",
+                        details[:180] or "not running",
+                        "Start with: `minikube start --driver=docker`.",
+                    )
+                )
+        except Exception as e:
+            checks.append(("Minikube cluster", "WARN", str(e)[:180], "Run `minikube start --driver=docker`."))
+
+    _k8s_client, _apps_api, _core_api, err_or_exc = _load_k8s_clients(kubeconfig, context)
+    if _k8s_client is None:
+        checks.append(
+            (
+                "Kube config / API",
+                "FAIL",
+                str(err_or_exc).splitlines()[0],
+                "Run `minikube update-context` and retry preflight.",
+            )
+        )
+    else:
+        try:
+            version_api = _k8s_client.VersionApi()
+            v = version_api.get_code()
+            checks.append(("Kubernetes API", "PASS", f"reachable (v{v.major}.{v.minor})", ""))
+        except Exception as e:
+            checks.append(
+                (
+                    "Kubernetes API",
+                    "FAIL",
+                    str(e)[:180],
+                    "Ensure cluster is running and current context is valid.",
+                )
+            )
+
+    table = Table(title="Kubernetes Doctor")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="yellow")
+    table.add_column("Details", style="white")
+    table.add_column("Suggested Fix", style="green")
+    for row in checks:
+        table.add_row(*row)
+    console.print(table)
+
+    fail_count = len([1 for c in checks if c[1] == "FAIL"])
+    warn_count = len([1 for c in checks if c[1] == "WARN"])
+    pass_count = len([1 for c in checks if c[1] == "PASS"])
+    typer.echo(f"Summary: PASS={pass_count} WARN={warn_count} FAIL={fail_count}")
+    if fail_count > 0:
+        typer.echo("Kubernetes is not ready yet.")
+        typer.echo("Quick recovery:")
+        if docker_ok:
+            typer.echo("1) Start cluster: `minikube start --driver=docker`")
+        else:
+            typer.echo("1) Install/start Docker Desktop first.")
+        typer.echo("2) Refresh context: `minikube update-context`")
+        typer.echo("3) Validate: `aiac deployment k8s-preflight`")
+    elif warn_count > 0:
+        typer.echo("Kubernetes is partially ready (warnings present).")
+    else:
+        typer.echo("Kubernetes looks ready for AIAC k8s commands.")
+
+
+@api_app_deployment.command("k8s-status")
+def k8s_status(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Show Kubernetes status for an AIAC deployment resource."""
+    k8s_client, apps_api, core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+    resource_name = f"aiac-deploy-{deployment_id}"
+    try:
+        dep = apps_api.read_namespaced_deployment(name=resource_name, namespace=namespace)
+        svc = core_api.read_namespaced_service(name=resource_name, namespace=namespace)
+        status = dep.status
+        service_ip = svc.spec.cluster_ip or "N/A"
+        table = Table(title="Kubernetes Runtime Status")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="white")
+        table.add_row("Name", resource_name)
+        table.add_row("Namespace", namespace)
+        table.add_row("Desired Replicas", str(dep.spec.replicas or 0))
+        table.add_row("Ready Replicas", str(status.ready_replicas or 0))
+        table.add_row("Available Replicas", str(status.available_replicas or 0))
+        table.add_row("Service Type", str(svc.spec.type))
+        table.add_row("Cluster IP", str(service_ip))
+        console.print(table)
+    except ApiException as e:
+        if e.status == 404:
+            typer.echo(
+                f"Kubernetes resources for deployment {deployment_id} were not found in namespace '{namespace}'."
+            )
+            return
+        typer.echo(f"Failed to fetch Kubernetes status: {e}")
+    except Exception as e:
+        typer.echo(f"Failed to fetch Kubernetes status: {e}")
+
+
+@api_app_deployment.command("k8s-scale")
+def k8s_scale(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    replicas: int = typer.Option(..., "--replicas", "-r", prompt=True, help="Target replicas"),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Scale Kubernetes deployment replicas."""
+    if replicas < 1:
+        typer.echo("replicas must be >= 1.")
+        return
+    k8s_client, apps_api, _core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+    resource_name = f"aiac-deploy-{deployment_id}"
+    body = {"spec": {"replicas": replicas}}
+    try:
+        apps_api.patch_namespaced_deployment_scale(
+            name=resource_name,
+            namespace=namespace,
+            body=body,
+        )
+        typer.echo(
+            f"Kubernetes deployment '{resource_name}' scaled to {replicas} replicas in namespace '{namespace}'."
+        )
+    except ApiException as e:
+        if e.status == 404:
+            typer.echo(
+                f"Kubernetes deployment '{resource_name}' was not found in namespace '{namespace}'."
+            )
+            return
+        typer.echo(f"Failed to scale Kubernetes deployment: {e}")
+    except Exception as e:
+        typer.echo(f"Failed to scale Kubernetes deployment: {e}")
+
+
+@api_app_deployment.command("k8s-hpa")
+def k8s_hpa(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    min_replicas: int = typer.Option(1, "--min", help="Minimum replicas"),
+    max_replicas: int = typer.Option(..., "--max", prompt=True, help="Maximum replicas"),
+    cpu_percent: int = typer.Option(
+        70,
+        "--cpu-percent",
+        help="Target average CPU utilization percentage",
+    ),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Create or update HorizontalPodAutoscaler for an AIAC Kubernetes deployment."""
+    if min_replicas < 1:
+        typer.echo("--min must be >= 1.")
+        return
+    if max_replicas < min_replicas:
+        typer.echo("--max must be >= --min.")
+        return
+    if cpu_percent < 1 or cpu_percent > 100:
+        typer.echo("--cpu-percent must be between 1 and 100.")
+        return
+
+    k8s_client, _apps_api, _core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+    autoscaling_api = k8s_client.AutoscalingV2Api()
+    resource_name = f"aiac-deploy-{deployment_id}"
+    hpa_name = f"{resource_name}-hpa"
+
+    metric = k8s_client.V2MetricSpec(
+        type="Resource",
+        resource=k8s_client.V2ResourceMetricSource(
+            name="cpu",
+            target=k8s_client.V2MetricTarget(
+                type="Utilization",
+                average_utilization=cpu_percent,
+            ),
+        ),
+    )
+
+    hpa_body = k8s_client.V2HorizontalPodAutoscaler(
+        metadata=k8s_client.V1ObjectMeta(name=hpa_name),
+        spec=k8s_client.V2HorizontalPodAutoscalerSpec(
+            scale_target_ref=k8s_client.V2CrossVersionObjectReference(
+                api_version="apps/v1",
+                kind="Deployment",
+                name=resource_name,
+            ),
+            min_replicas=min_replicas,
+            max_replicas=max_replicas,
+            metrics=[metric],
+        ),
+    )
+
+    try:
+        try:
+            autoscaling_api.read_namespaced_horizontal_pod_autoscaler(
+                name=hpa_name,
+                namespace=namespace,
+            )
+            autoscaling_api.patch_namespaced_horizontal_pod_autoscaler(
+                name=hpa_name,
+                namespace=namespace,
+                body=hpa_body,
+            )
+            action = "updated"
+        except ApiException as e:
+            if e.status != 404:
+                raise
+            autoscaling_api.create_namespaced_horizontal_pod_autoscaler(
+                namespace=namespace,
+                body=hpa_body,
+            )
+            action = "created"
+        typer.echo(
+            f"Kubernetes HPA {action}: {hpa_name} "
+            f"(min={min_replicas}, max={max_replicas}, cpu={cpu_percent}%) in namespace '{namespace}'."
+        )
+    except Exception as e:
+        typer.echo(f"Failed to configure Kubernetes HPA: {e}")
+
+
+@api_app_deployment.command("k8s-rollback")
+def k8s_rollback(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    to_revision: int = typer.Option(
+        0,
+        "--to-revision",
+        help="Target ReplicaSet revision. 0 means previous available revision.",
+    ),
+    yes: bool = typer.Option(False, "--yes", help="Skip confirmation."),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Rollback Kubernetes deployment image to a previous ReplicaSet revision."""
+    k8s_client, apps_api, _core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+
+    resource_name = f"aiac-deploy-{deployment_id}"
+    label_selector = f"aiac-deployment-id={deployment_id}"
+
+    try:
+        deployment = apps_api.read_namespaced_deployment(name=resource_name, namespace=namespace)
+    except ApiException as e:
+        if e.status == 404:
+            typer.echo(
+                f"Kubernetes deployment '{resource_name}' was not found in namespace '{namespace}'."
+            )
+            return
+        typer.echo(f"Failed to read Kubernetes deployment: {e}")
+        return
+    except Exception as e:
+        typer.echo(f"Failed to read Kubernetes deployment: {e}")
+        return
+
+    current_image = ""
+    if deployment.spec and deployment.spec.template and deployment.spec.template.spec and deployment.spec.template.spec.containers:
+        current_image = deployment.spec.template.spec.containers[0].image or ""
+
+    try:
+        rs_list = apps_api.list_namespaced_replica_set(
+            namespace=namespace,
+            label_selector=label_selector,
+        )
+    except Exception as e:
+        typer.echo(f"Failed to list ReplicaSets for rollback: {e}")
+        return
+
+    candidates = []
+    for rs in rs_list.items:
+        ann = (rs.metadata.annotations or {}) if rs.metadata else {}
+        rev_raw = ann.get("deployment.kubernetes.io/revision")
+        if not rev_raw:
+            continue
+        try:
+            rev = int(rev_raw)
+        except ValueError:
+            continue
+        image = ""
+        try:
+            image = rs.spec.template.spec.containers[0].image or ""
+        except Exception:
+            image = ""
+        if not image:
+            continue
+        candidates.append({"revision": rev, "image": image})
+
+    if not candidates:
+        typer.echo("No ReplicaSet revisions found for rollback.")
+        return
+
+    candidates = sorted(candidates, key=lambda x: x["revision"], reverse=True)
+    unique_by_revision = {}
+    for row in candidates:
+        unique_by_revision[row["revision"]] = row
+    revisions = sorted(unique_by_revision.keys(), reverse=True)
+
+    if to_revision > 0:
+        target = unique_by_revision.get(to_revision)
+        if not target:
+            typer.echo(
+                f"Requested revision {to_revision} was not found. "
+                f"Available revisions: {revisions}"
+            )
+            return
+    else:
+        target = None
+        for rev in revisions:
+            item = unique_by_revision[rev]
+            if item["image"] != current_image:
+                target = item
+                break
+        if not target:
+            typer.echo(
+                "No previous image revision found to rollback to "
+                "(current deployment already matches latest available image)."
+            )
+            return
+
+    if not yes:
+        confirm = typer.confirm(
+            f"Rollback '{resource_name}' to revision {target['revision']} "
+            f"(image: {target['image']}) in namespace '{namespace}'?"
+        )
+        if not confirm:
+            typer.echo("Canceled.")
+            return
+
+    patch_body = {
+        "spec": {
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "name": deployment.spec.template.spec.containers[0].name,
+                            "image": target["image"],
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    try:
+        apps_api.patch_namespaced_deployment(
+            name=resource_name,
+            namespace=namespace,
+            body=patch_body,
+        )
+        typer.echo(
+            f"Rollback triggered for '{resource_name}' in namespace '{namespace}'.\n"
+            f"Current image: {current_image}\n"
+            f"Target revision: {target['revision']} | Target image: {target['image']}"
+        )
+    except Exception as e:
+        typer.echo(f"Failed to rollback Kubernetes deployment: {e}")
+
+
+@api_app_deployment.command("k8s-delete")
+def k8s_delete(
+    deployment_id: int = typer.Option(..., prompt=True, help="AIAC deployment ID"),
+    namespace: str = typer.Option("default", "--namespace", "-n", help="Kubernetes namespace"),
+    yes: bool = typer.Option(False, "--yes", help="Skip confirmation."),
+    kubeconfig: str = typer.Option("", "--kubeconfig", help="Optional kubeconfig file path"),
+    context: str = typer.Option("", "--context", help="Optional kubeconfig context"),
+):
+    """Delete Kubernetes Deployment and Service created for AIAC deployment."""
+    if not yes:
+        confirm = typer.confirm(
+            f"Delete Kubernetes resources for deployment {deployment_id} in namespace '{namespace}'?"
+        )
+        if not confirm:
+            typer.echo("Canceled.")
+            return
+
+    k8s_client, apps_api, core_api, ApiException_or_error = _load_k8s_clients(kubeconfig, context)
+    if not k8s_client:
+        typer.echo(ApiException_or_error)
+        return
+    ApiException = ApiException_or_error
+    resource_name = f"aiac-deploy-{deployment_id}"
+    hpa_name = f"{resource_name}-hpa"
+
+    deleted = []
+    missing = []
+    try:
+        autoscaling_api = k8s_client.AutoscalingV2Api()
+        try:
+            autoscaling_api.delete_namespaced_horizontal_pod_autoscaler(
+                name=hpa_name,
+                namespace=namespace,
+            )
+            deleted.append("hpa")
+        except ApiException as e:
+            if e.status == 404:
+                missing.append("hpa")
+            else:
+                raise
+        try:
+            core_api.delete_namespaced_service(name=resource_name, namespace=namespace)
+            deleted.append("service")
+        except ApiException as e:
+            if e.status == 404:
+                missing.append("service")
+            else:
+                raise
+        try:
+            apps_api.delete_namespaced_deployment(name=resource_name, namespace=namespace)
+            deleted.append("deployment")
+        except ApiException as e:
+            if e.status == 404:
+                missing.append("deployment")
+            else:
+                raise
+
+        typer.echo(
+            f"Kubernetes cleanup finished for '{resource_name}' in namespace '{namespace}'. "
+            f"Deleted: {deleted or ['none']} | Missing: {missing or ['none']}"
+        )
+    except Exception as e:
+        typer.echo(f"Failed to delete Kubernetes resources: {e}")

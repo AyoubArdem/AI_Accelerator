@@ -266,5 +266,7 @@ def stop_server():
         _delete_log_file(state.get("log_path"))
         _clear_state()
         typer.echo(f"AIAC server stopped (PID {pid}).")
+        typer.echo("API commands require the server to be running.")
+        typer.echo("Start again with `aiac server run --migrate`.")
     else:
         typer.echo(f"Failed to stop AIAC server (PID {pid}).")

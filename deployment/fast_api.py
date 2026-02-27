@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 import os, json, logging, time, base64
 from io import BytesIO
 from typing import Optional, List, Dict, Any
+from threading import Lock
 import numpy as np
 try:
     import joblib
@@ -21,6 +22,9 @@ MODEL_PATH = os.environ.get("MODEL_PATH", "model.pkl")
 MODEL_META_PATH = os.environ.get("MODEL_META", "model_meta.json")
 model = None
 model_info = {}
+runtime_started_at = time.time()
+runtime_metrics = {"request_count": 0, "error_count": 0}
+runtime_metrics_lock = Lock()
 
 # Request schema
 class PredictRequest(BaseModel):
@@ -113,6 +117,13 @@ def _capabilities() -> Dict[str, Any]:
     except Exception:
         caps["missing_dependencies"].append("transformers")
     return caps
+
+
+def _register_runtime_result(success: bool) -> None:
+    with runtime_metrics_lock:
+        runtime_metrics["request_count"] += 1
+        if not success:
+            runtime_metrics["error_count"] += 1
 
 
 def _infer_from_array(arr: np.ndarray):
@@ -806,6 +817,18 @@ def health():
     }
 
 
+@app.get("/metrics")
+def metrics():
+    with runtime_metrics_lock:
+        request_count = int(runtime_metrics.get("request_count", 0))
+        error_count = int(runtime_metrics.get("error_count", 0))
+    return {
+        "request_count": request_count,
+        "error_count": error_count,
+        "uptime_seconds": round(max(0.0, time.time() - runtime_started_at), 3),
+    }
+
+
 @app.get("/capabilities")
 def capabilities():
     return {
@@ -831,9 +854,12 @@ def predict(req: PredictRequest):
 
     try:
         arr = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        return _infer_from_array(arr)
+        result = _infer_from_array(arr)
+        _register_runtime_result(success=True)
+        return result
 
     except Exception as e:
+        _register_runtime_result(success=False)
         logger.exception("Prediction error")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -877,13 +903,16 @@ def predict_decision(req: DecisionRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
     try:
         arr = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        return _decide_with_refusal(
+        result = _decide_with_refusal(
             arr=arr,
             min_confidence=req.min_confidence,
             min_margin=req.min_margin,
             blocked_labels=req.blocked_labels,
         )
+        _register_runtime_result(success=True)
+        return result
     except Exception as e:
+        _register_runtime_result(success=False)
         logger.exception("Decision inference error")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -893,7 +922,17 @@ def predict_text(req: PredictTextRequest):
     global model
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
-    return _infer_from_text(req.text)
+    try:
+        result = _infer_from_text(req.text)
+        _register_runtime_result(success=True)
+        return result
+    except HTTPException:
+        _register_runtime_result(success=False)
+        raise
+    except Exception as e:
+        _register_runtime_result(success=False)
+        logger.exception("Text inference error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/predict-image")
@@ -901,8 +940,18 @@ def predict_image(req: PredictImageRequest):
     global model
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
-    return _infer_from_image(
-        image_base64=req.image_base64,
-        target_size=req.target_size,
-        normalize=req.normalize,
-    )
+    try:
+        result = _infer_from_image(
+            image_base64=req.image_base64,
+            target_size=req.target_size,
+            normalize=req.normalize,
+        )
+        _register_runtime_result(success=True)
+        return result
+    except HTTPException:
+        _register_runtime_result(success=False)
+        raise
+    except Exception as e:
+        _register_runtime_result(success=False)
+        logger.exception("Image inference error")
+        raise HTTPException(status_code=500, detail=str(e))

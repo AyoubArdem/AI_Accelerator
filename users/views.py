@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model, authenticate
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -27,7 +28,20 @@ def _is_admin(user) -> bool:
 
 def _require_admin(request):
     if not _is_admin(request.user):
-        return Response({"detail": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
+        existing_admin = (
+            User.objects.filter(
+                Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True),
+                is_active=True,
+            )
+            .exclude(email__isnull=True)
+            .exclude(email__exact="")
+            .order_by("date_joined")
+            .first()
+        )
+        detail = "Admin access required."
+        if existing_admin:
+            detail = f"{detail} Contact admin: {existing_admin.email}."
+        return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
     return None
 
 

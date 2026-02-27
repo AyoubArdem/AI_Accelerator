@@ -119,6 +119,15 @@ class AIACClient:
             return base_message
         return f"API server is not reachable at {self.base_url}."
 
+    def _rewind_files(self, files: dict | None) -> None:
+        if not files:
+            return
+        for file_obj in files.values():
+            try:
+                file_obj.seek(0)
+            except Exception:
+                pass
+
     def api_request(self, endpoint: str, method: str = "GET", data: dict = None, files: dict = None, _retried: bool = False, _autostart_retried: bool = False):
         endpoint_url = self._build_url(endpoint)
         headers = {}
@@ -141,6 +150,7 @@ class AIACClient:
 
             response = requests.request(**request_kwargs)
             if response.status_code == 401 and not _retried and self._refresh_access_token():
+                self._rewind_files(files)
                 return self.api_request(endpoint, method=method, data=data, files=files, _retried=True, _autostart_retried=_autostart_retried)
             if response.status_code >= 400:
                 raise Exception(f"API request failed: {response.status_code} - {response.text}")
@@ -151,6 +161,7 @@ class AIACClient:
                 and isinstance(e, requests.ConnectionError)
                 and self._autostart_local_server()
             ):
+                self._rewind_files(files)
                 return self.api_request(
                     endpoint,
                     method=method,

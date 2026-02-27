@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-accelerator"
-version = "1.0.1"
+version = "1.1.2"
 description = "AI Accelerator: A production-ready MLOps platform to deploy, monitor, and govern machine learning models with security, scalability, and auditability."
 readme = "CONSOLE.md"
 license = "Apache-2.0"
@@ -55,6 +55,9 @@ dev = [
 ]
 observability = [
     "sentry-sdk>=2.0.0",
+]
+k8s = [
+    "kubernetes>=29.0.0",
 ]
 nlp = [
     "transformers>=4.40.0",

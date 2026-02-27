@@ -1157,6 +1157,11 @@ def get_samples(
     data_samples: str = typer.Option("", help="JSON array of numeric samples, e.g. \"[0.1, 0.2, 0.3]\""),
     samples_file: str = typer.Option("", help="Path to a JSON file containing an array of samples"),
     csv_file: str = typer.Option("", help="Path to CSV file. Uses first row as one feature vector sample."),
+    drop_last_column: bool = typer.Option(
+        False,
+        "--drop-last-column",
+        help="Drop the last CSV column for each row (useful when last column is label/target).",
+    ),
     input_format: str = typer.Option("auto", "--format", "-f", help="Input format for --samples-file: auto, json, csv."),
     chunk_size: int = typer.Option(0, "--chunk-size", help="Upload in batches (0 means single request)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate and preview samples without uploading."),
@@ -1173,6 +1178,7 @@ def get_samples(
         typer.echo("- Scalar samples (one number per sample): [0.1,0.2,0.3]")
 
         payload_samples = []
+        used_drop_last_column = False
         fmt = (input_format or "auto").strip().lower()
         if fmt not in {"auto", "json", "csv"}:
             typer.echo("Invalid format. Use auto, json, or csv.")
@@ -1209,6 +1215,13 @@ def get_samples(
                     cleaned = [cell.strip() for cell in row if cell.strip() != ""]
                     if not cleaned:
                         continue
+                    if drop_last_column:
+                        if len(cleaned) <= 1:
+                            raise ValueError(
+                                f"CSV row {idx} has only one column; cannot apply --drop-last-column."
+                            )
+                        cleaned = cleaned[:-1]
+                        used_drop_last_column = True
                     if any(not _is_number_text(cell) for cell in cleaned):
                         raise ValueError(f"Non-numeric value found in CSV row {idx}.")
                     numeric_row = [float(cell) for cell in cleaned]
@@ -1237,6 +1250,13 @@ def get_samples(
                         cleaned = [cell.strip() for cell in row if cell.strip() != ""]
                         if not cleaned:
                             continue
+                        if drop_last_column:
+                            if len(cleaned) <= 1:
+                                raise ValueError(
+                                    f"CSV row {idx} has only one column; cannot apply --drop-last-column."
+                                )
+                            cleaned = cleaned[:-1]
+                            used_drop_last_column = True
                         try:
                             parsed_rows.append([float(cell) for cell in cleaned])
                         except ValueError:
@@ -1259,6 +1279,8 @@ def get_samples(
             f"Parsed samples: total={stats['count']} scalar={stats['scalar_count']} "
             f"vector={stats['vector_count']} dims={stats['vector_dims'] if stats['vector_dims'] else 'N/A'}"
         )
+        if used_drop_last_column:
+            typer.echo("CSV parsing option enabled: dropped last column from each row.")
         if stats["count"] < 20:
             typer.echo(
                 "Note: drift detection needs at least 20 samples. "

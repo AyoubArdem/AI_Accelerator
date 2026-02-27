@@ -117,7 +117,11 @@ def register(
             elif "password" in payload:
                 message = "Password does not meet requirements. Please choose a stronger password."
             elif "role" in payload:
-                message = "Invalid role. Please use one of the supported roles."
+                message = (
+                    "Invalid role. Supported roles: client, developer, admin. "
+                    "Note: admin registration is allowed only for the first admin account; "
+                    "after that, use promote-admin."
+                )
             else:
                 extracted = _extract_first_error_message(payload)
                 if extracted:
