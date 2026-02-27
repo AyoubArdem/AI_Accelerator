@@ -53,6 +53,8 @@ When reporting, include:
 
 All reports will be reviewed promptly and fairly. We will respect the privacy and security of reporters as much as possible.
 
+Maintainers will acknowledge receipt of reports within 72 hours whenever possible and provide follow-up steps after initial review.
+
 ## Enforcement Guidelines
 
 Maintainers may apply consequences based on severity and pattern of behavior, including:

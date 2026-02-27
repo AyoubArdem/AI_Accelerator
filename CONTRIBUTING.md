@@ -4,7 +4,8 @@ Thanks for contributing to AI Accelerator. This guide explains how to propose ch
 
 ## Code of Conduct
 
-By participating, you agree to follow the project's code of conduct in `CODE_OF_CONDUCT.md` and  `CLA.md`.
+By participating, you agree to follow the project's code of conduct in `CODE_OF_CONDUCT.md`.
+Contribution licensing terms are defined in `CLA.md`.
 
 ## Ways to Contribute
 
@@ -18,7 +19,7 @@ By participating, you agree to follow the project's code of conduct in `CODE_OF_
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10 to 3.12
 - Git
 - Redis (recommended for async tasks)
 - Docker (recommended for deployment/runtime workflows)
@@ -29,17 +30,16 @@ By participating, you agree to follow the project's code of conduct in `CODE_OF_
 git clone https://github.com/AyoubArdem/ai-accelerator.git
 cd ai-accelerator
 
-python -m venv env1
+python -m venv .venv
 # Windows:
-env1\Scripts\activate
+.venv\Scripts\activate
 # Linux/macOS:
-# source env1/bin/activate
+# source .venv/bin/activate
 
-pip install -e .
 pip install -e ".[dev]"
 
 python manage.py migrate
-python manage.py runserver
+aiac server run --host 127.0.0.1 --port 8000 --migrate
 ```
 
 Optional:
