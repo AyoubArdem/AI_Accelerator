@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Kubernetes orchestration commands in deployment CLI:
+  - `deployment k8s-bootstrap`
+  - `deployment k8s-preflight`
+  - `deployment k8s-doctor`
+  - `deployment k8s-deploy`
+  - `deployment k8s-status`
+  - `deployment k8s-scale`
+  - `deployment k8s-hpa`
+  - `deployment k8s-rollback`
+  - `deployment k8s-delete`
+- Governance violation action commands:
+  - `governance resolve-violation`
+  - `governance reopen-violation`
+  - `governance resolve-all-violations`
+- Session-aware violation action hints (current account context and visible IDs guidance).
+- Monitoring sample ingestion option:
+  - `monitoring samples --drop-last-column` for CSV label/target stripping.
+- Runtime metrics endpoint (`GET /metrics`) and request/error counters for more accurate monitoring totals.
+
+### Changed
+- `governance metrics` command now supports filters/format:
+  - `--deployment-id`, `--severity`, `--resolved`, `--format`
+- `server stop` output now includes clear next-step guidance to restart server.
+- Deployment list/details output now includes Kubernetes image hint (`model_deploy_<deployment_id>`).
+- Improved Kubernetes config auto-recovery path:
+  - path/env expansion for kubeconfig
+  - best-effort `minikube update-context`
+  - clearer remediation instructions.
+
+### Fixed
+- Traffic shadow friendly handling for feature-count mismatch errors.
+- Governance auth/session error messages now avoid raw JWT payload noise.
+- File upload retry after token refresh now rewinds stream to prevent empty-file uploads.
+- Violation table now includes violation IDs to support resolve/reopen flows.
+
+## [1.0.1] - 2026-02-27
+
+### Changed
+- Packaging/documentation alignment and CLI improvements since `1.0.0`.
+- PyPI release update to `1.0.1`.
+
 ## [1.0.0] - 2026-02-25
 
 ### Added

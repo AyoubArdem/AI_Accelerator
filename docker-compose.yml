@@ -9,13 +9,19 @@ services:
       - .:/app
     environment:
       - DEBUG=True
-      - DATABASE_URL=postgresql://ai_user:ai_password@postgres:5432/ai_accelerator
+      - DB_NAME=ai_accelerator
+      - DB_USER=ai_user
+      - DB_PASSWORD=ai_password
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CACHE_URL=redis://redis:6379/1
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     networks:
       - ai-accelerator
@@ -26,6 +32,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - ai-accelerator
 
@@ -39,6 +50,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_accelerator"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - ai-accelerator
 
@@ -49,13 +65,19 @@ services:
     volumes:
       - .:/app
     environment:
-      - DATABASE_URL=postgresql://ai_user:ai_password@postgres:5432/ai_accelerator
+      - DB_NAME=ai_accelerator
+      - DB_USER=ai_user
+      - DB_PASSWORD=ai_password
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CACHE_URL=redis://redis:6379/1
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - ai-accelerator
 

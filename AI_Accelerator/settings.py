@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-31zkjc965bz@we($(*xw5f6)w!-%w-v#$(5-x8v)wa^k8%k(07'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").strip().lower() in {"1", "true", "yes", "on"}
 
 ALLOWED_HOSTS = []
 
@@ -147,11 +147,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DJANGO_ALLOW_ALL_ORIGINS = True
 AYTH_USER_MODEL = 'users.User'
-db_name = os.getenv('DB_Name')
-db_user = os.getenv('Username')
-db_password = os.getenv('Password')
-db_host = os.getenv('Host')
-db_port = os.getenv('Port', '5432')
+db_name = os.getenv("DB_Name") or os.getenv("DB_NAME")
+db_user = os.getenv("Username") or os.getenv("DB_USER")
+db_password = os.getenv("Password") or os.getenv("DB_PASSWORD")
+db_host = os.getenv("Host") or os.getenv("DB_HOST")
+db_port = os.getenv("Port") or os.getenv("DB_PORT", "5432")
 
 # Use PostgreSQL only when all required credentials are configured.
 if all([db_name, db_user, db_password, db_host]):
@@ -218,15 +218,15 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 
 
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": os.getenv("CACHE_URL", "redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }

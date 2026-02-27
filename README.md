@@ -187,7 +187,7 @@ aiac --help
 | [**SECURITY.md**](SECURITY.md) | Security policy and vulnerability reporting |
 | [**CODE_OF_CONDUCT.md**](CODE_OF_CONDUCT.md) | Community standards and behavior guidelines |
 | [**CLA.md**](CLA.md) | Contributor License Agreement (CLA) defines the terms under which contributions are made to AI Accelerator|
-| [**TRADEMARKS.md**](TRADEMARKS.md) | This document describes the trademark policy for the AI Accelerator name and logo |
+| [**TRADEMARK.md**](TRADEMARK.md) | Trademark policy for the AI Accelerator name and logo |
 | [**LICENSE**](LICENSE) | Apache 2.0 License terms |
 | [**SUPPORT_OPEN_SOURCE**](.github/Support_Project.md) | Why sponsor AI Accelerator |
 
@@ -874,4 +874,3 @@ limitations under the License.
 > Our goal is to make AI deployment, monitoring, and governance structured, secure, and scalable from experimentation to real-world impact.
 
  **Let's build the future of AI infrastructure together!**
-
